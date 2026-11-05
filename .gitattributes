@@ -1,0 +1,6 @@
+# Keep everything LF so the bash/python scripts run on Linux (Kali/WSL) after clone.
+* text=auto eol=lf
+*.sh  text eol=lf
+*.py  text eol=lf
+*.md  text eol=lf
+*.html text eol=lf

