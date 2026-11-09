@@ -48,14 +48,17 @@ SUDO=""
 if [ "$USE_SUDO" -eq 1 ]; then
   if command -v sudo >/dev/null; then SUDO="sudo"; fi
 fi
+# noninteractive so tshark/zeek/postfix debconf prompts don't hang the run
+# (passed via env because sudo strips the caller's environment)
+APT="$SUDO env DEBIAN_FRONTEND=noninteractive apt-get"
 
 apt_install() {
   [ "$USE_SUDO" -eq 0 ] && { warn "skipping apt (--no-sudo): $*"; return; }
-  $SUDO apt-get install -y --no-install-recommends "$@" && return
+  $APT install -y --no-install-recommends "$@" && return
   # one unknown package (e.g. Kali-only on Ubuntu) fails the whole batch — retry singly
   warn "apt batch failed — retrying one package at a time"
   for p in "$@"; do
-    $SUDO apt-get install -y --no-install-recommends "$p" >/dev/null 2>&1 || err "apt failed: $p"
+    $APT install -y --no-install-recommends "$p" >/dev/null 2>&1 || err "apt failed: $p"
   done
 }
 
@@ -72,20 +75,97 @@ pipx_install() {
 
 gem_install() { command -v gem >/dev/null && { $SUDO gem install "$1" || err "gem failed: $1"; } || err "gem missing for $1"; }
 
+# stegseek (fast steghide cracker) — only shipped as a GitHub .deb
+install_stegseek() {
+  command -v stegseek >/dev/null && return
+  [ "$USE_SUDO" -eq 0 ] && { warn "skipping stegseek (--no-sudo)"; return; }
+  wget -q https://github.com/RickdeJager/stegseek/releases/download/v0.6/stegseek_0.6-1.deb -O /tmp/stegseek.deb \
+    && $APT install -y /tmp/stegseek.deb || err "stegseek install"
+}
+
+# zeek — in Kali's repo, but on Ubuntu/Debian it comes from Zeek's official OBS repo
+install_zeek() {
+  { command -v zeek >/dev/null || [ -x /opt/zeek/bin/zeek ]; } && return
+  [ "$USE_SUDO" -eq 0 ] && { warn "skipping zeek (--no-sudo)"; return; }
+  $APT install -y zeek >/dev/null 2>&1 && { ok "zeek installed"; return; }
+  . /etc/os-release
+  case "$ID" in
+    ubuntu) repo="xUbuntu_$VERSION_ID" ;;
+    debian) repo="Debian_$VERSION_ID" ;;
+    *) err "zeek: no OBS repo for $ID — see docs.zeek.org/en/current/install.html"; return ;;
+  esac
+  url="https://download.opensuse.org/repositories/security:/zeek/$repo"
+  echo "deb $url/ /" | $SUDO tee /etc/apt/sources.list.d/security:zeek.list >/dev/null
+  curl -fsSL "$url/Release.key" | gpg --dearmor | $SUDO tee /etc/apt/trusted.gpg.d/security_zeek.gpg >/dev/null
+  $APT update >/dev/null 2>&1
+  $APT install -y zeek && ok "zeek -> /opt/zeek/bin" || err "zeek install"
+}
+
+# Ghidra — Kali has an apt package; elsewhere pull the latest release zip (needs JDK 21)
+install_ghidra() {
+  { command -v ghidra >/dev/null || [ -d /opt/ghidra ] || [ -d "$HOME/tools/ghidra" ]; } && return
+  $APT install -y ghidra >/dev/null 2>&1 && { ok "ghidra installed"; return; }
+  apt_install openjdk-21-jdk
+  url=$(curl -s https://api.github.com/repos/NationalSecurityAgency/ghidra/releases/latest \
+        | grep -oE 'https://[^"]*ghidra_[^"]*_PUBLIC_[0-9]+\.zip' | head -1)
+  [ -z "$url" ] && { err "ghidra release URL (grab it from github.com/NationalSecurityAgency/ghidra)"; return; }
+  mkdir -p "$HOME/tools" "$HOME/.local/bin"
+  wget -q "$url" -O /tmp/ghidra.zip && unzip -o -q /tmp/ghidra.zip -d "$HOME/tools" \
+    && mv "$HOME/tools"/ghidra_*_PUBLIC "$HOME/tools/ghidra" \
+    && ln -sf "$HOME/tools/ghidra/ghidraRun" "$HOME/.local/bin/ghidra" \
+    && ok "ghidra -> ~/tools/ghidra (run 'ghidra')" || err "ghidra install"
+}
+
+# pwndbg (nicer gdb for pwn/rev)
+install_pwndbg() {
+  [ -d "$HOME/tools/pwndbg" ] && return
+  mkdir -p "$HOME/tools"
+  run git clone --depth 1 https://github.com/pwndbg/pwndbg "$HOME/tools/pwndbg"
+  ( cd "$HOME/tools/pwndbg" && ./setup.sh ) || warn "run pwndbg setup.sh manually"
+}
+
+# pwninit — patches a binary to use the challenge's libc/ld
+install_pwninit() {
+  command -v pwninit >/dev/null && return
+  mkdir -p "$HOME/.local/bin"
+  wget -q https://github.com/io12/pwninit/releases/latest/download/pwninit -O "$HOME/.local/bin/pwninit" \
+    && chmod +x "$HOME/.local/bin/pwninit" && ok "pwninit -> ~/.local/bin" || err "pwninit install"
+}
+
+# PyInstaller .exe -> .pyc (pyinstxtractor) -> source (pycdc)
+install_pyrev() {
+  mkdir -p "$HOME/tools" "$HOME/.local/bin"
+  [ -f "$HOME/tools/pyinstxtractor.py" ] || wget -q \
+    https://raw.githubusercontent.com/extremecoders-re/pyinstxtractor/master/pyinstxtractor.py \
+    -O "$HOME/tools/pyinstxtractor.py" || err "pyinstxtractor download"
+  command -v pycdc >/dev/null && return
+  [ -d "$HOME/tools/pycdc" ] || run git clone --depth 1 https://github.com/zrax/pycdc "$HOME/tools/pycdc"
+  ( cd "$HOME/tools/pycdc" && cmake -S . -B build >/dev/null && cmake --build build -j >/dev/null ) \
+    && ln -sf "$HOME/tools/pycdc/build/pycdc" "$HOME/.local/bin/pycdc" \
+    && ok "pycdc -> ~/.local/bin" || err "pycdc build"
+}
+
 # ---------------------------------------------------------------------------
 say "Updating apt index"
-if [ "$USE_SUDO" -eq 1 ]; then $SUDO apt-get update || warn "apt update failed (continuing)"; fi
+if [ "$USE_SUDO" -eq 1 ]; then $APT update || warn "apt update failed (continuing)"; fi
 
 say "Base build/runtime deps"
 apt_install git curl wget build-essential cmake python3 python3-pip pipx ruby ruby-dev \
-            default-jdk unzip p7zip-full xxd jq ripgrep coreutils \
+            default-jdk unzip p7zip-full xxd jq ripgrep coreutils gnupg \
             python3-dev libssl-dev libffi-dev libgmp-dev libmpfr-dev libmpc-dev
 
 # ============================ PYTHON LIBS (always) =========================
 # Imported directly by the cheat-sheet snippets and auto_* scripts.
 say "Python CTF libraries (always installed)"
-pip_install pwntools pycryptodome z3-solver unicorn capstone sympy gmpy2 \
-            ropper beautifulsoup4 impacket requests
+# Prefer the distro builds: on Python 3.14 pip has no wheels for unicorn (source build
+# fails) and ropper's dep 'filebytes' uses ast.Str (removed). pip is the fallback.
+apt_install python3-pwntools python3-pycryptodome python3-z3 python3-unicorn \
+            python3-capstone python3-sympy python3-gmpy2 python3-bs4 \
+            python3-impacket python3-requests ropper
+python3 -c 'import pwn, Crypto, z3, unicorn, capstone, sympy, gmpy2, bs4, impacket, requests' 2>/dev/null \
+  && ok "python CTF libs importable" \
+  || pip_install pwntools pycryptodome z3-solver unicorn capstone sympy gmpy2 \
+                 beautifulsoup4 impacket requests
 
 # ============================ WORDLISTS & CRACKERS (always) ================
 # Installed on every run (not gated by --category) so rockyou/hashcat/SecLists
@@ -96,7 +176,7 @@ apt_install hashcat hashcat-utils john john-data hydra ncrack \
 # dirb ships common.txt on Ubuntu too; wordlists/seclists are Kali-only, so they're
 # tried quietly and SecLists is cloned from GitHub when the package is missing
 apt_install dirb
-$SUDO apt-get install -y --no-install-recommends wordlists seclists >/dev/null 2>&1 || true
+$APT install -y --no-install-recommends wordlists seclists >/dev/null 2>&1 || true
 if [ ! -d /usr/share/seclists ]; then
   warn "seclists package unavailable — cloning SecLists (large, ~1 GB)"
   $SUDO git clone --depth 1 https://github.com/danielmiessler/SecLists.git /usr/share/seclists \
@@ -125,6 +205,47 @@ for entry in "${WORDLISTS[@]}"; do
   [ -f "$dst" ] && ok "$name ready: $dst" || warn "$name not found — set it in automate/config.sh"
 done
 
+# ============================ ESSENTIALS (always) ==========================
+# The everyday tool per category — installed on every run (not gated by
+# --category) so a fresh box can attempt any challenge. Extras stay below.
+say "Essential CTF tools (always installed)"
+ESSENTIALS=(
+  # triage / forensics
+  file binwalk foremost libimage-exiftool-perl sleuthkit qpdf poppler-utils
+  # stego
+  steghide outguess stegsnow pngcheck imagemagick sox zbar-tools qrencode
+  # network / pcap
+  nmap tshark tcpdump tcpflow netcat-openbsd socat dnsutils whois
+  # web
+  sqlmap gobuster ffuf nikto whatweb
+  # rev / pwn
+  gdb radare2 ltrace strace patchelf upx-ucl checksec gcc-multilib
+)
+apt_install "${ESSENTIALS[@]}"
+gem_install zsteg                 # PNG/BMP LSB stego
+install_stegseek
+install_zeek
+pipx_install volatility3          # memory forensics (vol)
+pipx_install name-that-hash       # hash identification (nth)
+
+# ============================ COMMON PLAYER TOOLS (always) =================
+# What most CTF players reach for per category. Browser tools (CyberChef,
+# dcode.fr, factordb, crackstation, aperisolve, libc.rip, SageCell) are skipped.
+say "Common player tools (always installed)"
+apt_install wireshark testdisk jadx
+# sagemath was dropped from recent Ubuntu — tried quietly, browser fallback below
+$APT install -y --no-install-recommends sagemath >/dev/null 2>&1 || true
+install_ghidra                    # rev
+install_pwndbg                    # pwn/rev
+install_pwninit                   # pwn
+install_pyrev                     # rev (pyinstxtractor + pycdc)
+pipx_install ROPgadget            # pwn
+gem_install one_gadget            # pwn
+pipx_install flask-unsign         # web — Flask session cookies
+pipx_install git-dumper           # web — exposed /.git
+pipx_install xortool              # crypto — repeating-key XOR
+command -v sage >/dev/null || warn "sage not in this distro's apt — use sagecell.sagemath.org or 'docker run -it sagemath/sagemath'"
+
 # ============================== TRIAGE ====================================
 if want triage; then
   say "Triage / file analysis"
@@ -135,7 +256,7 @@ fi
 # ============================== CRYPTO ====================================
 if want crypto; then
   say "Crypto"
-  apt_install python3-pycryptodome sagemath yafu
+  apt_install python3-pycryptodome yafu
   pipx_install name-that-hash
   pipx_install featherduster 2>/dev/null || true
   # RsaCtfTool (the RSA swiss-army knife)
@@ -196,11 +317,7 @@ if want stego; then
   apt_install steghide outguess stegsnow pngcheck imagemagick sox zbar-tools \
               libimage-exiftool-perl
   gem_install zsteg
-  # stegseek (fast steghide cracker) — .deb release
-  if ! command -v stegseek >/dev/null; then
-    wget -q https://github.com/RickdeJager/stegseek/releases/download/v0.6/stegseek_0.6-1.deb -O /tmp/stegseek.deb \
-      && $SUDO apt-get install -y /tmp/stegseek.deb || err "stegseek install"
-  fi
+  install_stegseek
   # stegsolve.jar (GUI bit-plane viewer)
   if [ ! -f "$HOME/tools/stegsolve.jar" ]; then
     mkdir -p "$HOME/tools"
@@ -217,16 +334,8 @@ if want rev; then
               apktool dex2jar jadx openjdk-17-jre
   # angr + z3 for symbolic solving
   pipx_install angr 2>/dev/null || pip_install angr
-  # Ghidra
-  if [ ! -d /opt/ghidra ] && [ ! -d "$HOME/tools/ghidra" ]; then
-    warn "Ghidra: 'sudo apt-get install -y ghidra' on Kali, or grab the release zip from github.com/NationalSecurityAgency/ghidra"
-    apt_install ghidra 2>/dev/null || true
-  fi
-  # pwndbg (nicer gdb)
-  if [ ! -d "$HOME/tools/pwndbg" ]; then
-    run git clone --depth 1 https://github.com/pwndbg/pwndbg "$HOME/tools/pwndbg"
-    ( cd "$HOME/tools/pwndbg" && ./setup.sh ) || warn "run pwndbg setup.sh manually"
-  fi
+  install_ghidra
+  install_pwndbg
 fi
 
 # ============================== PWN =======================================
@@ -241,8 +350,9 @@ fi
 # ============================== NETWORK ===================================
 if want net; then
   say "Network / PCAP"
-  apt_install wireshark tshark tcpdump tcpflow ngrep zeek \
+  apt_install wireshark tshark tcpdump tcpflow ngrep \
               python3-scapy dsniff net-tools dnsutils
+  install_zeek
   pipx_install pyshark 2>/dev/null || true
   # USB HID keystroke extraction helper (very common CTF)
   [ ! -f "$HOME/tools/ctf-usb-keyboard-parser" ] && \
@@ -280,7 +390,7 @@ fi
 # ---------------------------------------------------------------------------
 say "Done."
 echo "Add these to your shell rc if not already present:"
-echo '   export PATH="$HOME/.local/bin:$HOME/tools:$PATH"'
+echo '   export PATH="$HOME/.local/bin:$HOME/tools:/opt/zeek/bin:$PATH"'
 echo "   alias stegsolve='java -jar ~/tools/stegsolve.jar'"
 echo "   alias rsactftool='python3 ~/tools/RsaCtfTool/RsaCtfTool.py'"
 
