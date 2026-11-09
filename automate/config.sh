@@ -13,13 +13,16 @@ set -o pipefail 2>/dev/null || true
 
 # ---------- flag matching ----------
 : "${FLAG_PREFIX:=}"                                   # e.g. CSG  -> matches CSG{...} only
+                                                       # multi-event: 'pwnsec|psctf|ctf' (alternation OK)
 [ -z "${FLAG_REGEX:-}" ] && FLAG_REGEX='[A-Za-z0-9_]{2,}\{[^}]{1,120}\}'   # generic default
-set_flag_prefix(){ [ -n "${1:-}" ] && FLAG_REGEX="${1}\\{[^}]{1,120}\\}"; }
+# wrap the prefix in a group so an alternation like pwnsec|psctf|ctf binds correctly
+set_flag_prefix(){ [ -n "${1:-}" ] && FLAG_REGEX="(${1})\\{[^}]{1,120}\\}"; }
 [ -n "$FLAG_PREFIX" ] && set_flag_prefix "$FLAG_PREFIX"
 
 # ---------- wordlists / tool locations ----------
 : "${WORDLIST:=/usr/share/wordlists/rockyou.txt}"      # primary cracking list
 : "${SECLISTS:=/usr/share/seclists}"                   # SecLists root
+: "${DIRLIST:=/usr/share/wordlists/common.txt}"        # dirbust list (gobuster/ffuf)
 : "${HAYABUSA:=}"                                      # hayabusa binary (auto-detected if empty)
 : "${VOL:=}"                                           # volatility3 cmd (auto-detected if empty)
 
@@ -37,7 +40,7 @@ set_flag_prefix(){ [ -n "${1:-}" ] && FLAG_REGEX="${1}\\{[^}]{1,120}\\}"; }
 : "${SPRAY_THRESHOLD:=5}"                              # 4648 distinct targets -> password spray
 : "${ADMIN_THRESHOLD:=5}"                              # 4672 admin logons/account
 
-export FLAG_REGEX FLAG_PREFIX WORDLIST SECLISTS HAYABUSA VOL \
+export FLAG_REGEX FLAG_PREFIX WORDLIST SECLISTS DIRLIST HAYABUSA VOL \
        TOOL_TIMEOUT HEAD_LINES FAIL_THRESHOLD SPRAY_THRESHOLD ADMIN_THRESHOLD \
        WEB_DELAY WEB_MAX_RETRIES WEB_BUDGET
 
@@ -113,9 +116,9 @@ finalize_report(){
       echo '| hits | candidate | note |'; echo '|---|---|---|'
       # prefix matches first (if a prefix is set), then the rest — each already count-sorted
       if [ -n "$FLAG_PREFIX" ]; then
-        printf '%s\n' "$raw" | grep -E "[0-9] ${FLAG_PREFIX}\{" 2>/dev/null \
+        printf '%s\n' "$raw" | grep -E "[0-9] (${FLAG_PREFIX})\{" 2>/dev/null \
           | while read -r c cand; do echo "| $c | \`$cand\` | matches prefix ✓ |"; done
-        printf '%s\n' "$raw" | grep -vE "[0-9] ${FLAG_PREFIX}\{" 2>/dev/null \
+        printf '%s\n' "$raw" | grep -vE "[0-9] (${FLAG_PREFIX})\{" 2>/dev/null \
           | while read -r c cand; do echo "| $c | \`$cand\` | |"; done
       else
         printf '%s\n' "$raw" | while read -r c cand; do echo "| $c | \`$cand\` | |"; done
@@ -159,5 +162,6 @@ misc:zip2john,fcrackzip,bkcrack,pdfcrack,qpdf"
   echo
   [ -f "$WORDLIST" ] && grn "  wordlist OK : $WORDLIST" || ylw "  wordlist MISSING : $WORDLIST"
   [ -d "$SECLISTS" ] && grn "  seclists OK : $SECLISTS" || ylw "  seclists MISSING : $SECLISTS"
+  [ -f "$DIRLIST" ]  && grn "  dirlist OK  : $DIRLIST"  || ylw "  dirlist MISSING  : $DIRLIST"
   { have python3 && python3 -c 'import pwn' 2>/dev/null && grn "  pwntools OK"; } || ylw "  pwntools MISSING (pip install pwntools)"
 }

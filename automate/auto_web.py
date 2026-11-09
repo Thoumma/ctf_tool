@@ -242,7 +242,8 @@ for action, method, fields in forms[:10]:
         tag = "  ".join(res) if res else "no obvious injection"
         print(f"  {method.upper():4} {action}  field '{p}'  -> {tag}")
 if not tested:
-    print("  (no params/forms found — dirbust first: ffuf -u %sFUZZ -w raft-medium-words.txt)" % BASE)
+    print("  (no params/forms found — dirbust first: ffuf -u %sFUZZ -w %s)"
+          % (BASE, os.environ.get("DIRLIST", "/usr/share/wordlists/common.txt")))
 
 # ---------- 4. summary ----------
 print("\n=== LIKELY AREA(S) ===")

@@ -51,7 +51,18 @@ fi
 
 apt_install() {
   [ "$USE_SUDO" -eq 0 ] && { warn "skipping apt (--no-sudo): $*"; return; }
-  $SUDO apt-get install -y --no-install-recommends "$@" || err "apt failed: $*"
+  $SUDO apt-get install -y --no-install-recommends "$@" && return
+  # one unknown package (e.g. Kali-only on Ubuntu) fails the whole batch — retry singly
+  warn "apt batch failed — retrying one package at a time"
+  for p in "$@"; do
+    $SUDO apt-get install -y --no-install-recommends "$p" >/dev/null 2>&1 || err "apt failed: $p"
+  done
+}
+
+# --break-system-packages only exists on pip >= 23 (older Ubuntu pip rejects it)
+pip_install() {
+  pip3 install --user --break-system-packages "$@" 2>/dev/null \
+    || pip3 install --user "$@" || err "pip failed: $*"
 }
 
 pipx_install() {
@@ -67,29 +78,52 @@ if [ "$USE_SUDO" -eq 1 ]; then $SUDO apt-get update || warn "apt update failed (
 
 say "Base build/runtime deps"
 apt_install git curl wget build-essential cmake python3 python3-pip pipx ruby ruby-dev \
-            default-jdk unzip p7zip-full xxd jq ripgrep coreutils
+            default-jdk unzip p7zip-full xxd jq ripgrep coreutils \
+            python3-dev libssl-dev libffi-dev libgmp-dev libmpfr-dev libmpc-dev
+
+# ============================ PYTHON LIBS (always) =========================
+# Imported directly by the cheat-sheet snippets and auto_* scripts.
+say "Python CTF libraries (always installed)"
+pip_install pwntools pycryptodome z3-solver unicorn capstone sympy gmpy2 \
+            ropper beautifulsoup4 impacket requests
 
 # ============================ WORDLISTS & CRACKERS (always) ================
 # Installed on every run (not gated by --category) so rockyou/hashcat/SecLists
 # are guaranteed present — the auto_* scripts default to these paths.
 say "Wordlists & crackers (always installed)"
-apt_install wordlists seclists hashcat hashcat-utils john john-data hydra ncrack \
+apt_install hashcat hashcat-utils john john-data hydra ncrack \
             crunch cewl fcrackzip pdfcrack
-# unzip rockyou wherever Kali shipped it
-for rk in /usr/share/wordlists/rockyou.txt.gz \
-          /usr/share/seclists/Passwords/Leaked-Databases/rockyou.txt.tar.gz; do
-  case "$rk" in
-    *.gz)      [ -f "$rk" ] && $SUDO gunzip -kf "$rk" 2>/dev/null ;;
-    *.tar.gz)  [ -f "$rk" ] && $SUDO tar -xf "$rk" -C "$(dirname "$rk")" 2>/dev/null ;;
-  esac
-done
-# make sure the canonical path exists (symlink from SecLists copy if needed)
-if [ ! -f /usr/share/wordlists/rockyou.txt ] && [ -f /usr/share/seclists/Passwords/Leaked-Databases/rockyou.txt ]; then
-  $SUDO ln -sf /usr/share/seclists/Passwords/Leaked-Databases/rockyou.txt /usr/share/wordlists/rockyou.txt 2>/dev/null
+# dirb ships common.txt on Ubuntu too; wordlists/seclists are Kali-only, so they're
+# tried quietly and SecLists is cloned from GitHub when the package is missing
+apt_install dirb
+$SUDO apt-get install -y --no-install-recommends wordlists seclists >/dev/null 2>&1 || true
+if [ ! -d /usr/share/seclists ]; then
+  warn "seclists package unavailable — cloning SecLists (large, ~1 GB)"
+  $SUDO git clone --depth 1 https://github.com/danielmiessler/SecLists.git /usr/share/seclists \
+    || err "SecLists clone failed"
 fi
-[ -f /usr/share/wordlists/rockyou.txt ] && ok "rockyou ready: /usr/share/wordlists/rockyou.txt" \
-  || warn "rockyou not found — set WORDLIST= in automate/config.sh to your list"
 [ -d /usr/share/seclists ] && ok "SecLists: /usr/share/seclists" || warn "SecLists missing"
+# unzip rockyou wherever Kali/SecLists shipped it
+$SUDO mkdir -p /usr/share/wordlists
+[ -f /usr/share/wordlists/rockyou.txt.gz ] && $SUDO gunzip -kf /usr/share/wordlists/rockyou.txt.gz 2>/dev/null
+rk=/usr/share/seclists/Passwords/Leaked-Databases/rockyou.txt.tar.gz
+[ -f "$rk" ] && $SUDO tar -xf "$rk" -C "$(dirname "$rk")" 2>/dev/null
+
+# Wordlist list — "name|candidate source paths…". Each ends up at /usr/share/wordlists/<name>
+# (symlinked from the first source that exists), which is where automate/config.sh looks.
+WORDLISTS=(
+  "rockyou.txt|/usr/share/seclists/Passwords/Leaked-Databases/rockyou.txt"
+  "common.txt|/usr/share/seclists/Discovery/Web-Content/common.txt /usr/share/dirb/wordlists/common.txt /usr/share/wordlists/dirb/common.txt"
+)
+for entry in "${WORDLISTS[@]}"; do
+  name=${entry%%|*}; dst=/usr/share/wordlists/$name
+  if [ ! -f "$dst" ]; then
+    for src in ${entry#*|}; do
+      [ -f "$src" ] && { $SUDO ln -sf "$src" "$dst"; break; }
+    done
+  fi
+  [ -f "$dst" ] && ok "$name ready: $dst" || warn "$name not found — set it in automate/config.sh"
+done
 
 # ============================== TRIAGE ====================================
 if want triage; then
@@ -117,9 +151,8 @@ fi
 # ============================== WEB =======================================
 if want web; then
   say "Web"
-  apt_install sqlmap ffuf gobuster feroxbuster wfuzz nikto whatweb \
-              seclists wordlists python3-requests
-  pipx_install jwt_tool 2>/dev/null || run git clone --depth1 https://github.com/ticarpi/jwt_tool "$HOME/tools/jwt_tool"
+  apt_install sqlmap ffuf gobuster feroxbuster wfuzz nikto whatweb
+  pipx_install jwt_tool 2>/dev/null || run git clone --depth 1 https://github.com/ticarpi/jwt_tool "$HOME/tools/jwt_tool"
   ok "Burp Suite ships with Kali (run 'burpsuite'). SecLists -> /usr/share/seclists"
 fi
 
@@ -131,9 +164,9 @@ if want forensics; then
               bulk-extractor ewf-tools afflib-tools
   # Windows registry / evtx / MFT
   pipx_install regipy
-  pipx_install python-registry 2>/dev/null || pip3 install --user --break-system-packages python-registry
+  pipx_install python-registry 2>/dev/null || pip_install python-registry
   pipx_install evtx 2>/dev/null || true                      # evtx_dump binary
-  pip3 install --user --break-system-packages python-evtx    # Evtx lib for auto_winlog.py
+  pip_install python-evtx                                    # Evtx lib for auto_winlog.py
   pipx_install analyzeMFT 2>/dev/null || true
   # DeepBlueCLI (event-log threat hunt) — auto_winlog.py mirrors its rules
   [ ! -d "$HOME/tools/DeepBlueCLI" ] && git clone --depth 1 https://github.com/sans-blue-team/DeepBlueCLI "$HOME/tools/DeepBlueCLI" 2>/dev/null
@@ -183,8 +216,7 @@ if want rev; then
   apt_install radare2 gdb ltrace strace nasm patchelf upx-ucl \
               apktool dex2jar jadx openjdk-17-jre
   # angr + z3 for symbolic solving
-  pipx_install angr 2>/dev/null || pip3 install --user --break-system-packages angr
-  pip3 install --user --break-system-packages z3-solver
+  pipx_install angr 2>/dev/null || pip_install angr
   # Ghidra
   if [ ! -d /opt/ghidra ] && [ ! -d "$HOME/tools/ghidra" ]; then
     warn "Ghidra: 'sudo apt-get install -y ghidra' on Kali, or grab the release zip from github.com/NationalSecurityAgency/ghidra"
@@ -201,10 +233,8 @@ fi
 if want pwn; then
   say "Pwn / binary exploitation"
   apt_install gdb gcc-multilib libc6-dbg checksec socat netcat-openbsd
-  pip3 install --user --break-system-packages pwntools
   pipx_install ROPgadget
   gem_install one_gadget
-  pip3 install --user --break-system-packages ropper
   ok "glibc version DBs: use 'libc.rip' or local libc-database for ret2libc"
 fi
 
@@ -245,10 +275,6 @@ if want misc; then
   fi
   # *2john helpers live in /usr/share/john/ on Kali
   ok "*2john converters: ls /usr/share/john/*2john*"
-  # rockyou
-  if [ -f /usr/share/wordlists/rockyou.txt.gz ]; then
-    $SUDO gunzip -k /usr/share/wordlists/rockyou.txt.gz 2>/dev/null && ok "rockyou.txt unzipped"
-  fi
 fi
 
 # ---------------------------------------------------------------------------
